@@ -204,6 +204,16 @@ function cleanKoreanAddress(addr: string): string {
   return cleaned;
 }
 
+// Clean item name by removing redundant box/quantity mentions (e.g., '(1박스)', '1박스', '(2box)')
+function cleanKoreanItemName(name: string): string {
+  if (!name) return "";
+  let cleaned = name.trim();
+  // Remove patterns like (1박스), (2박스), (1box), (10박스), 1박스, 2박스 at the end
+  cleaned = cleaned.replace(/\s*[\(\[\{]\s*\d+\s*(박스|box|상자|포|EA|개|개입)\s*[\)\]\}]/gi, "");
+  cleaned = cleaned.replace(/\s+\d+\s*(박스|box|상자)\s*$/gi, "");
+  return cleaned.trim();
+}
+
 // Official Korean 5-digit Postal Code & Standard Road Address Lookup
 async function lookupOfficialKoreanPostcode(rawAddress: string): Promise<{
   zipCode: string;
@@ -351,7 +361,8 @@ app.post("/api/scan-address", async (req, res) => {
 5. 우편번호 (zipCode):
    - 용지에 실제로 적혀있는 경우만 5자리 추출, 없으면 빈 문자열("").
 6. 상품명 (itemName) & 수량 (quantity):
-   - 적혀있는 상품명(예: 감자 10kg, 감귤, 한라봉 등) 및 박스 수량(기본값 1).
+   - 상품명에서 '(1박스)', '(2박스)', '1박스'와 같은 불필요한 박스 수량 문구는 제거하고 순수 품목명(예: '감자 10kg', '유기농 당근 5kg', '한라봉' 등)만 추출하세요.
+   - 박스 수량은 수량(quantity) 필드(정수, 기본값 1)에 따로 정확히 분리하여 기재하세요.
 7. 배송메모 (memo):
    - "문 앞", "부재 시 경비실", "배송 전 연락" 등 요청사항.
 8. 상태 판별 (status):
@@ -456,6 +467,7 @@ app.post("/api/scan-address", async (req, res) => {
         const detail = (item.detailAddress || "").trim();
         const recipient = (item.recipientName || "").trim();
         const phone = (item.phone || "").trim();
+        const cleanedItem = cleanKoreanItemName(item.itemName || "");
 
         let zip = (item.zipCode || "").replace(/[^0-9]/g, "");
 
@@ -477,6 +489,7 @@ app.post("/api/scan-address", async (req, res) => {
           detailAddress: detail,
           recipientName: recipient,
           phone: phone,
+          itemName: cleanedItem,
           zipCode: zip,
           validationNotes: zip ? `공식 우편번호(${zip}) 자동 정제 완료` : (item.validationNotes || "우편번호 확인 필요"),
         };

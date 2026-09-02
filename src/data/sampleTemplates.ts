@@ -98,7 +98,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     address: '제주특별자치도 제주시 구좌읍 해맞이해안로 123',
     detailAddress: '101동 202호',
     zipCode: '63357',
-    itemName: '감자 10kg (1박스)',
+    itemName: '감자 10kg',
     quantity: 1,
     memo: '문 앞 보관',
     status: 'VALID',
@@ -114,7 +114,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     address: '제주시 애월읍 애월해안로 111',
     detailAddress: '302호',
     zipCode: '63047',
-    itemName: '제주 햇감자 10kg (2박스)',
+    itemName: '제주 햇감자 10kg',
     quantity: 2,
     memo: '배송 전 연락바랍니다',
     status: 'VALID',
@@ -130,7 +130,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     address: '서귀포시 안덕면 덕수남로 216',
     detailAddress: '덕수빌리지 B동 102호',
     zipCode: '63526',
-    itemName: '깐마늘 3kg (1박스)',
+    itemName: '깐마늘 3kg',
     quantity: 1,
     memo: '직접 수령',
     status: 'VALID',
@@ -146,7 +146,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     address: '제주시 오라동 123-4',
     detailAddress: '오라힐스 301호',
     zipCode: '63184',
-    itemName: '노지감귤 10kg (1박스)',
+    itemName: '노지감귤 10kg',
     quantity: 1,
     memo: '경비실 보관',
     status: 'VALID',
@@ -648,7 +648,7 @@ export function generateSampleA4ImageDataUrl(sender?: Partial<SenderProfile>): s
           <g transform="translate(0, 256)">
             <text x="0" y="0">상품명 (수량)</text>
             <line x1="0" y1="28" x2="605" y2="28" stroke="#cbd5e1" stroke-width="1.2"/>
-            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">감자 10kg (1박스)</text>
+            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">감자 10kg</text>
           </g>
         </g>
       </g>
@@ -712,7 +712,7 @@ export function generateSampleA4ImageDataUrl(sender?: Partial<SenderProfile>): s
           <g transform="translate(0, 256)">
             <text x="0" y="0">상품명 (수량)</text>
             <line x1="0" y1="28" x2="605" y2="28" stroke="#cbd5e1" stroke-width="1.2"/>
-            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">제주 햇감자 10kg (2박스)</text>
+            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">제주 햇감자 10kg</text>
           </g>
         </g>
       </g>
@@ -776,7 +776,7 @@ export function generateSampleA4ImageDataUrl(sender?: Partial<SenderProfile>): s
           <g transform="translate(0, 256)">
             <text x="0" y="0">상품명 (수량)</text>
             <line x1="0" y1="28" x2="605" y2="28" stroke="#cbd5e1" stroke-width="1.2"/>
-            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">깐마늘 3kg (1박스)</text>
+            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">깐마늘 3kg</text>
           </g>
         </g>
       </g>
@@ -840,7 +840,7 @@ export function generateSampleA4ImageDataUrl(sender?: Partial<SenderProfile>): s
           <g transform="translate(0, 256)">
             <text x="0" y="0">상품명 (수량)</text>
             <line x1="0" y1="28" x2="605" y2="28" stroke="#cbd5e1" stroke-width="1.2"/>
-            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">노지감귤 10kg (1박스)</text>
+            <text x="115" y="-1" font-size="15" font-weight="800" fill="#1d4ed8">노지감귤 10kg</text>
           </g>
         </g>
       </g>

@@ -14,7 +14,6 @@ import {
   generateSampleA4ImageDataUrl 
 } from './data/sampleTemplates';
 import { Navbar } from './components/Navbar';
-import { LandingView } from './components/LandingView';
 import { DashboardView } from './components/DashboardView';
 import { ScanUploadView } from './components/ScanUploadView';
 import { ScanResultView } from './components/ScanResultView';
@@ -23,7 +22,6 @@ import { EditItemModal } from './components/EditItemModal';
 import { BulkApplyModal } from './components/BulkApplyModal';
 import { ExcelPreviewModal } from './components/ExcelPreviewModal';
 import { SettingsModal } from './components/SettingsModal';
-import { AuthModal } from './components/AuthModal';
 import { MobileCameraCapture } from './components/MobileCameraCapture';
 import { AdBanner } from './components/AdBanner';
 import { NaverShoppingBanner } from './components/NaverShoppingBanner';
@@ -43,26 +41,7 @@ export default function App() {
     return null;
   });
 
-  // Authentication State
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    const saved = localStorage.getItem('parcelscan_logged_in');
-    return saved !== null ? saved === 'true' : true;
-  });
-
-  const [userProfile, setUserProfile] = useState<{ name: string; email: string; businessName?: string }>(() => {
-    const saved = localStorage.getItem('parcelscan_user_profile');
-    if (saved) return JSON.parse(saved);
-    return {
-      name: '평대취급소',
-      email: '0192449625@naver.com',
-      businessName: '평대취급소',
-    };
-  });
-
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
-
-  // Navigation (for logged in state: dashboard, scan, result, history)
+  // Navigation (dashboard, scan, result, history)
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'scan' | 'result' | 'history'>('dashboard');
 
   // Persistence States
@@ -174,22 +153,6 @@ export default function App() {
   // Save to localStorage safely when state changes
   useEffect(() => {
     try {
-      localStorage.setItem('parcelscan_logged_in', String(isLoggedIn));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('parcelscan_user_profile', JSON.stringify(userProfile));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
-  }, [userProfile]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem('parcelscan_sender', JSON.stringify(sender));
     } catch (e) {
       console.warn('LocalStorage save failed:', e);
@@ -218,161 +181,6 @@ export default function App() {
       console.warn('LocalStorage save batches failed (QuotaExceeded):', e);
     }
   }, [batches]);
-
-  // Auth Handlers
-  const handleLoginSuccess = (info: { name: string; email: string; businessName?: string; isNewSignup?: boolean }) => {
-    setUserProfile({
-      name: info.name,
-      email: info.email,
-      businessName: info.businessName,
-    });
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-
-    if (info.email === 'test1@gmail.com') {
-      // Demo 1: 제주바람농원
-      setSender(DEFAULT_SENDER);
-      setCustomers(INITIAL_CUSTOMERS);
-      setBatches([
-        {
-          id: 'batch-initial-1',
-          title: '2026-08-28 오후 접수 (주소 용지 6건)',
-          createdAt: '2026-08-28 14:32',
-          itemCount: 6,
-          boxCount: 9,
-          warningCount: 1,
-          errorCount: 0,
-          status: 'completed',
-          courier: 'cj',
-          items: SAMPLE_SCANNED_ITEMS,
-          imageUrl: generateSampleA4ImageDataUrl(DEFAULT_SENDER),
-        },
-      ]);
-      setCurrentItems(SAMPLE_SCANNED_ITEMS);
-      setCurrentImageUrl(generateSampleA4ImageDataUrl(DEFAULT_SENDER));
-      setActiveBatchId('batch-initial-1');
-      setCurrentTab('dashboard');
-      return;
-    }
-
-    if (info.email === 'test2@gmail.com') {
-      // Demo 2: 온라인마켓 굿즈랩
-      const goodsSender: SenderProfile = {
-        name: '온라인마켓 굿즈랩 (이과장)',
-        phone: '010-8888-7777',
-        tel: '02-555-1234',
-        address: '서울특별시 성동구 성수이로 88',
-        detailAddress: '아트타워 4층 402호',
-        zipCode: '04782',
-        defaultItem: '핸드메이드 굿즈 세트',
-        defaultCourier: 'lotte',
-        defaultMemo: '부재 시 경비실 보관 부탁드립니다',
-      };
-      setSender(goodsSender);
-      setCustomers(INITIAL_CUSTOMERS);
-      setBatches([
-        {
-          id: 'batch-goods-1',
-          title: '성수 팝업스토어 굿즈 배송건 (4건)',
-          createdAt: '2026-08-30 11:15',
-          itemCount: 4,
-          boxCount: 5,
-          warningCount: 0,
-          errorCount: 0,
-          status: 'completed',
-          courier: 'lotte',
-          items: SAMPLE_SCANNED_ITEMS.slice(0, 4),
-          imageUrl: generateSampleA4ImageDataUrl(goodsSender),
-        },
-      ]);
-      setCurrentItems(SAMPLE_SCANNED_ITEMS.slice(0, 4));
-      setCurrentImageUrl(generateSampleA4ImageDataUrl(goodsSender));
-      setActiveBatchId('batch-goods-1');
-      setCurrentTab('dashboard');
-      return;
-    }
-
-    if (info.isNewSignup) {
-      // Clean workspace for fresh user registration (0 items, 0 batches, custom store name)
-      const freshSender: SenderProfile = {
-        name: info.businessName || info.name || (info.email === '0192449625@naver.com' ? '평대취급소' : '내 사업장/이름'),
-        phone: info.email === '0192449625@naver.com' ? '010-6663-9996' : '',
-        tel: '',
-        address: info.email === '0192449625@naver.com' ? '제주특별자치도 제주시 구좌읍 평대리' : '',
-        detailAddress: info.email === '0192449625@naver.com' ? '평대취급소' : '',
-        zipCode: info.email === '0192449625@naver.com' ? '63359' : '',
-        defaultItem: '상품/농산물',
-        defaultCourier: 'cj',
-        defaultMemo: '파손주의 / 안전배송 부탁드립니다',
-      };
-      setSender(freshSender);
-      setCustomers([]);
-      setBatches([]);
-      setCurrentItems([]);
-      setCurrentImageUrl(null);
-      setActiveBatchId(null);
-      setCurrentTab('dashboard');
-
-      try {
-        localStorage.setItem('parcelscan_sender', JSON.stringify(freshSender));
-        localStorage.setItem('parcelscan_customers', JSON.stringify([]));
-        localStorage.setItem('parcelscan_batches', JSON.stringify([]));
-      } catch (e) {
-        console.warn('LocalStorage reset error:', e);
-      }
-    } else {
-      // Returning login (e.g. 0192449625@naver.com)
-      if (info.businessName && info.businessName !== sender.name) {
-        setSender(prev => ({ ...prev, name: info.businessName || prev.name }));
-      }
-      setCurrentTab('dashboard');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentTab('dashboard');
-  };
-
-  const handleOpenLogin = () => {
-    setAuthModalMode('login');
-    setIsAuthModalOpen(true);
-  };
-
-  const handleOpenSignup = () => {
-    setAuthModalMode('signup');
-    setIsAuthModalOpen(true);
-  };
-
-  const handleQuickDemoStart = () => {
-    setUserProfile({
-      name: '제주바람농원 (김대표)',
-      email: 'test1@gmail.com',
-      businessName: '제주바람농원',
-    });
-    setSender(DEFAULT_SENDER);
-    setCustomers(INITIAL_CUSTOMERS);
-    setBatches([
-      {
-        id: 'batch-initial-1',
-        title: '2026-08-28 오후 접수 (주소 용지 6건)',
-        createdAt: '2026-08-28 14:32',
-        itemCount: 6,
-        boxCount: 9,
-        warningCount: 1,
-        errorCount: 0,
-        status: 'completed',
-        courier: 'cj',
-        items: SAMPLE_SCANNED_ITEMS,
-        imageUrl: generateSampleA4ImageDataUrl(DEFAULT_SENDER),
-      },
-    ]);
-    setCurrentItems(SAMPLE_SCANNED_ITEMS);
-    setCurrentImageUrl(generateSampleA4ImageDataUrl(DEFAULT_SENDER));
-    setActiveBatchId('batch-initial-1');
-    setIsLoggedIn(true);
-    setCurrentTab('dashboard');
-  };
 
   // Today Statistics - computed directly from batches to prevent double counting or stale resets
   const allBatchItems = batches.flatMap((b) => b.items || []);
@@ -433,6 +241,10 @@ export default function App() {
           notes = `기존 고객(${matchedCust.name}) 주소 정보와 일치`;
         }
 
+        let cleanItemName = (raw.itemName || sender.defaultItem || '과일/농산물').trim();
+        cleanItemName = cleanItemName.replace(/\s*[\(\[\{]\s*\d+\s*(박스|box|상자|포|EA|개|개입)\s*[\)\]\}]/gi, '');
+        cleanItemName = cleanItemName.replace(/\s+\d+\s*(박스|box|상자)\s*$/gi, '').trim();
+
         return {
           id: `scan-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
           cellNumber: raw.cellNumber || idx + 1,
@@ -441,7 +253,7 @@ export default function App() {
           address: raw.address || '',
           detailAddress: raw.detailAddress || '',
           zipCode: raw.zipCode || '63047',
-          itemName: raw.itemName || sender.defaultItem || '과일/농산물',
+          itemName: cleanItemName || sender.defaultItem || '과일/농산물',
           quantity: typeof raw.quantity === 'number' && raw.quantity > 0 ? raw.quantity : 1,
           memo: raw.memo || '문 앞 보관',
           status: finalStatus,
@@ -650,91 +462,73 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
       {/* Top Navigation */}
       <Navbar
-        isLoggedIn={isLoggedIn}
-        userProfile={userProfile}
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         sender={sender}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenLogin={handleOpenLogin}
-        onOpenSignup={handleOpenSignup}
-        onLogout={handleLogout}
         activeItemCount={todayStats.totalItems}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {!isLoggedIn ? (
-          /* Before Login: Landing & Value View */
-          <LandingView
-            onOpenLogin={handleOpenLogin}
-            onOpenSignup={handleOpenSignup}
-            onQuickDemoStart={handleQuickDemoStart}
+        {currentTab === 'dashboard' && (
+          <DashboardView
+            batches={batches}
+            todayStats={todayStats}
+            sender={sender}
+            onStartNewScan={() => setCurrentTab('scan')}
+            onOpenSampleScan={handleLoadSampleData}
+            onViewBatch={handleViewBatch}
+            onQuickExport={handleQuickExportBatch}
+            onUpdateBatchCourier={handleUpdateBatchCourier}
           />
-        ) : (
-          /* After Login: Application Views */
-          <>
-            {currentTab === 'dashboard' && (
-              <DashboardView
-                batches={batches}
-                todayStats={todayStats}
-                sender={sender}
-                userProfile={userProfile}
-                onStartNewScan={() => setCurrentTab('scan')}
-                onOpenSampleScan={handleLoadSampleData}
-                onViewBatch={handleViewBatch}
-                onQuickExport={handleQuickExportBatch}
-                onUpdateBatchCourier={handleUpdateBatchCourier}
-              />
-            )}
+        )}
 
-            {currentTab === 'scan' && (
-              <ScanUploadView
-                onScanImage={handleScanImage}
-                onLoadSample={handleLoadSampleData}
-                isScanning={isScanning}
-                scanStepText={scanStepText}
-                scanError={scanError}
-                onClearError={() => setScanError(null)}
-              />
-            )}
+        {currentTab === 'scan' && (
+          <ScanUploadView
+            onScanImage={handleScanImage}
+            onLoadSample={handleLoadSampleData}
+            isScanning={isScanning}
+            scanStepText={scanStepText}
+            scanError={scanError}
+            onClearError={() => setScanError(null)}
+          />
+        )}
 
-            {currentTab === 'result' && (
-              <ScanResultView
-                items={currentItems}
-                scannedImageUrl={currentImageUrl}
-                sender={sender}
-                customers={customers}
-                batches={batches}
-                activeBatchId={activeBatchId}
-                activeBatchTitle={batches.find((b) => b.id === activeBatchId)?.title}
-                onUpdateItems={handleUpdateItems}
-                onEditItem={handleOpenEditItem}
-                onOpenBulkModal={handleOpenBulkModal}
-                onOpenExcelPreview={(c) => {
-                  setPreviewCourier(c);
-                  setIsExcelPreviewOpen(true);
-                }}
-                onReScan={() => setCurrentTab('scan')}
-                onAddNewRow={handleAddNewRow}
-                onBackToList={() => setCurrentTab('history')}
-                onNavigateTab={(t) => setCurrentTab(t)}
-                onSelectBatch={handleViewBatch}
-                onUpdateBatchCourier={handleUpdateBatchCourier}
-              />
-            )}
+        {currentTab === 'result' && (
+          <ScanResultView
+            items={currentItems}
+            scannedImageUrl={currentImageUrl}
+            sender={sender}
+            customers={customers}
+            batches={batches}
+            activeBatchId={activeBatchId}
+            activeBatchTitle={batches.find((b) => b.id === activeBatchId)?.title}
+            onUpdateItems={handleUpdateItems}
+            onEditItem={handleOpenEditItem}
+            onOpenBulkModal={handleOpenBulkModal}
+            onOpenExcelPreview={(c) => {
+              setPreviewCourier(c);
+              setIsExcelPreviewOpen(true);
+            }}
+            onReScan={() => setCurrentTab('scan')}
+            onAddNewRow={handleAddNewRow}
+            onBackToList={() => setCurrentTab('history')}
+            onNavigateTab={(t) => setCurrentTab(t)}
+            onSelectBatch={handleViewBatch}
+            onUpdateBatchCourier={handleUpdateBatchCourier}
+          />
+        )}
 
-            {currentTab === 'history' && (
-              <BatchHistoryView
-                batches={batches}
-                sender={sender}
-                onViewBatch={handleViewBatch}
-                onDeleteBatch={handleDeleteBatch}
-                onStartNewScan={() => setCurrentTab('scan')}
-                onUpdateBatchCourier={handleUpdateBatchCourier}
-              />
-            )}
-          </>
+        {currentTab === 'history' && (
+          <BatchHistoryView
+            batches={batches}
+            sender={sender}
+            onViewBatch={handleViewBatch}
+            onDeleteBatch={handleDeleteBatch}
+            onStartNewScan={() => setCurrentTab('scan')}
+            onUpdateBatchCourier={handleUpdateBatchCourier}
+          />
         )}
 
         {/* Naver Shopping Connect Supplies Banner */}
@@ -756,13 +550,6 @@ export default function App() {
       />
 
       {/* Modals */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        initialMode={authModalMode}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
-
       <PrivacyPolicyModal
         isOpen={isPrivacyOpen}
         onClose={() => setIsPrivacyOpen(false)}

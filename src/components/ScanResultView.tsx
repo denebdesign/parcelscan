@@ -14,10 +14,7 @@ import {
   Sparkles, 
   CheckSquare, 
   Square,
-  Image as ImageIcon,
   Copy,
-  ArrowUpDown,
-  ExternalLink,
   ChevronDown,
   ArrowLeft,
   LayoutDashboard,
@@ -73,8 +70,6 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
   );
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VALID' | 'NEEDS_REVIEW' | 'ERROR'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [showImagePanel, setShowImagePanel] = useState<boolean>(!!scannedImageUrl);
-  const [activeCellHighlight, setActiveCellHighlight] = useState<number | null>(null);
   const [deleteToast, setDeleteToast] = useState<{ message: string; backup: ParcelItem[] } | null>(null);
   const [isResolvingPostcodes, setIsResolvingPostcodes] = useState(false);
 
@@ -454,26 +449,11 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
               />
             </div>
 
-            {/* Toggle Image View Button */}
-            {scannedImageUrl && (
-              <button
-                onClick={() => setShowImagePanel(!showImagePanel)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                  showImagePanel
-                    ? 'bg-blue-50 text-blue-700 border-blue-300'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span>{showImagePanel ? '사진 숨기기' : '원본 사진 보기'}</span>
-              </button>
-            )}
-
             {/* Add New Row */}
             <button
               id="btn-add-row"
               onClick={onAddNewRow}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1 transition-colors shrink-0"
+              className="px-3.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-colors shrink-0 border border-blue-200 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>행 추가</span>
@@ -482,108 +462,80 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
         </div>
       </div>
 
-      {/* Main Content Layout (Split View: Image + Table) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left: Original Scanned Image Panel (Collapsible) */}
-        {showImagePanel && scannedImageUrl && (
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3 h-fit sticky top-20">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-blue-600" />
-                <span>원본 접수 용지 사진</span>
-              </div>
-              <span className="text-[11px] text-slate-400 font-normal">주소 용지 대조</span>
+      {/* Main Content Layout (Full-Width Table for Maximum Usability) */}
+      <div className="space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {/* Table Action Sub-header */}
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleToggleSelectAll}
+                className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
+              >
+                {isAllSelected ? (
+                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-400" />
+                )}
+                <span>전체 선택 ({selectedItems.length}/{items.length})</span>
+              </button>
             </div>
 
-            <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900/5 max-h-[600px] flex items-center justify-center">
-              <img
-                src={scannedImageUrl}
-                alt="원본 택배 접수 용지"
-                className="w-full h-auto object-contain max-h-[580px] rounded-lg shadow-2xs"
-              />
-            </div>
-            <p className="text-[11px] text-slate-400 text-center">
-              * 손글씨와 표 데이터가 일치하는지 좌우로 대조하며 확인하세요.
-            </p>
-          </div>
-        )}
-
-        {/* Right: Scanned Items Interactive Table */}
-        <div className={`${showImagePanel && scannedImageUrl ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-3`}>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            {/* Table Action Sub-header */}
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+            {/* Bulk Edit Actions when items selected */}
+            {selectedItems.length > 0 && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleToggleSelectAll}
-                  className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-slate-900"
+                  id="btn-open-bulk-modal"
+                  onClick={() => onOpenBulkModal(selectedItems.length)}
+                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
-                  {isAllSelected ? (
-                    <CheckSquare className="w-4 h-4 text-blue-600" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-400" />
-                  )}
-                  <span>전체 선택 ({selectedItems.length}/{items.length})</span>
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>선택 {selectedItems.length}건 일괄 수정</span>
+                </button>
+
+                <button
+                  onClick={handleDeleteSelected}
+                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>삭제</span>
                 </button>
               </div>
+            )}
+          </div>
 
-              {/* Bulk Edit Actions when items selected */}
-              {selectedItems.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    id="btn-open-bulk-modal"
-                    onClick={() => onOpenBulkModal(selectedItems.length)}
-                    className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>선택 {selectedItems.length}건 일괄 수정</span>
-                  </button>
-
-                  <button
-                    onClick={handleDeleteSelected}
-                    className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>삭제</span>
-                  </button>
-                </div>
-              )}
+          {/* Table */}
+          {filteredItems.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 text-xs">
+              조건에 일치하는 배송지 항목이 없습니다.
             </div>
-
-            {/* Table */}
-            {filteredItems.length === 0 ? (
-              <div className="p-12 text-center text-slate-500 text-xs">
-                조건에 일치하는 배송지 항목이 없습니다.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="w-8 px-3 py-3 text-center">선택</th>
-                      <th className="w-10 px-2 py-3 text-center">No</th>
-                      <th className="w-20 px-3 py-3 text-center">상태</th>
-                      <th className="px-3 py-3 font-bold text-slate-800">받는분</th>
-                      <th className="px-3 py-3">연락처</th>
-                      <th className="px-3 py-3">주소(도로명) / 상세주소</th>
-                      <th className="w-24 px-3 py-3 font-bold text-blue-900">상품명</th>
-                      <th className="w-14 px-2 py-3 text-center">수량</th>
-                      <th className="px-3 py-3">배송메모</th>
-                      <th className="w-20 px-3 py-3 text-right">수정/관리</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredItems.map((item, index) => {
-                      const isSelected = !!item.selected;
-                      return (
-                        <tr
-                          key={item.id}
-                          className={`hover:bg-blue-50/40 transition-colors group ${
-                            isSelected ? 'bg-blue-50/30' : ''
-                          }`}
-                          onMouseEnter={() => item.cellNumber && setActiveCellHighlight(item.cellNumber)}
-                          onMouseLeave={() => setActiveCellHighlight(null)}
-                        >
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th className="w-8 px-3 py-3 text-center">선택</th>
+                    <th className="w-10 px-2 py-3 text-center">No</th>
+                    <th className="w-20 px-3 py-3 text-center">상태</th>
+                    <th className="px-3 py-3 font-bold text-slate-800">받는분</th>
+                    <th className="px-3 py-3">연락처</th>
+                    <th className="px-3 py-3">주소(도로명) / 상세주소</th>
+                    <th className="w-24 px-3 py-3 font-bold text-blue-900">상품명</th>
+                    <th className="w-14 px-2 py-3 text-center">수량</th>
+                    <th className="px-3 py-3">배송메모</th>
+                    <th className="w-20 px-3 py-3 text-right">수정/관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredItems.map((item, index) => {
+                    const isSelected = !!item.selected;
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-blue-50/40 transition-colors group ${
+                          isSelected ? 'bg-blue-50/30' : ''
+                        }`}
+                      >
                           {/* Checkbox */}
                           <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
@@ -761,14 +713,14 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={onReScan}
-                className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>새 사진 추가 촬영/인식</span>
               </button>
               <button
                 onClick={handleQuickDownload}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all active:scale-95"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>엑셀 다운로드</span>
@@ -776,7 +728,6 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Floating Undo Delete Toast */}
       {deleteToast && (
