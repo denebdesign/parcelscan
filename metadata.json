@@ -1,0 +1,7 @@
+{
+  "name": "택배스캔",
+  "description": "종이에 적힌 택배 주소를 사진 한 장으로 AI 전산화하고 택배사별 표준 엑셀(CJ대한통운, 롯데, 한진, 우체국, 로젠)을 자동 생성하는 서비스",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
