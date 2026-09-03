@@ -144,7 +144,7 @@ export const Footer: React.FC<FooterProps> = ({
               rel="noopener noreferrer"
               className="hover:underline text-blue-600 font-medium inline-flex items-center gap-0.5"
             >
-              <span>문의게시판</span>
+              <span>문의게시판7</span>
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
           </div>
