@@ -151,12 +151,12 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
                 <div>
                   <span className="font-semibold text-slate-800">공식 문의 게시판:</span>{' '}
                   <a
-                    href="https://iuser.kr/board/parcelscan"
+                    href="https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 font-semibold hover:underline"
+                    className="text-blue-600 font-semibold hover:underline font-mono break-all"
                   >
-                    iuser.kr/board/parcelscan
+                    https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan
                   </a>
                 </div>
               </div>

@@ -127,12 +127,12 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ isOpen
               <p>
                 <strong>공식 문의 게시판:</strong>{' '}
                 <a
-                  href="https://iuser.kr/board/parcelscan"
+                  href="https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 font-semibold hover:underline font-mono"
+                  className="text-blue-600 font-semibold hover:underline font-mono break-all"
                 >
-                  https://iuser.kr/board/parcelscan
+                  https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan
                 </a>
               </p>
             </div>

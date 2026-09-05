@@ -83,7 +83,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
             </p>
             <div className="pt-1">
               <a
-                href="https://iuser.kr/board/parcelscan"
+                href="https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors"
@@ -112,12 +112,12 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               <div className="sm:col-span-2">
                 <span className="text-slate-400">문의 채널:</span>{' '}
                 <a 
-                  href="https://iuser.kr/board/parcelscan" 
+                  href="https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan" 
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-blue-700 hover:underline font-mono"
+                  className="font-semibold text-blue-700 hover:underline font-mono break-all"
                 >
-                  https://iuser.kr/board/parcelscan
+                  https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan
                 </a>
               </div>
             </div>

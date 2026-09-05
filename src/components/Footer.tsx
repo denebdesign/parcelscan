@@ -11,7 +11,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenPrivacy,
   onOpenTerms,
 }) => {
-  const BOARD_URL = 'https://iuser.kr/board/parcelscan';
+  const BOARD_URL = 'https://iuser.kr/g5/bbs/board.php?bo_table=parcelscan';
 
   return (
     <footer className="bg-white border-t border-slate-200 mt-12 text-slate-500 text-xs print:hidden">
@@ -43,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({
                   rel="noopener noreferrer"
                   className="hover:underline text-blue-600 font-medium inline-flex items-center gap-0.5"
                 >
-                  <span>iuser.kr/board/parcelscan</span>
+                  <span>iuser.kr 문의게시판</span>
                   <ExternalLink className="w-3 h-3 text-blue-400" />
                 </a>
               </span>
@@ -144,7 +144,7 @@ export const Footer: React.FC<FooterProps> = ({
               rel="noopener noreferrer"
               className="hover:underline text-blue-600 font-medium inline-flex items-center gap-0.5"
             >
-              <span>문의게시판7</span>
+              <span>문의게시판</span>
               <ExternalLink className="w-2.5 h-2.5" />
             </a>
           </div>
