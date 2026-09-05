@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Store, Save, Building2, Phone, MapPin, Package, Check } from 'lucide-react';
 import { SenderProfile, CourierType } from '../types';
 import { COURIER_CONFIGS } from '../utils/excelExporter';
+import { UserCustomTemplateModal } from './UserCustomTemplateModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   const [formData, setFormData] = React.useState<SenderProfile>({ ...sender });
+  const [isCustomTemplateOpen, setIsCustomTemplateOpen] = useState(false);
 
   React.useEffect(() => {
     setFormData({ ...sender });
@@ -165,6 +167,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
+          {/* Custom Excel Template Entry Banner */}
+          <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-amber-950 text-xs flex items-center gap-1.5">
+                <span>★ 내 맞춤 엑셀 양식 설정</span>
+              </p>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                열 순서, 주소 합치기/분리, 열 제목을 사장님 업무에 맞게 변경하세요.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCustomTemplateOpen(true)}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors shadow-xs cursor-pointer"
+            >
+              양식 설정
+            </button>
+          </div>
+
           {/* Buttons */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
             <button
@@ -184,6 +205,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </form>
       </div>
+
+      <UserCustomTemplateModal
+        isOpen={isCustomTemplateOpen}
+        onClose={() => setIsCustomTemplateOpen(false)}
+        onSaved={() => {}}
+      />
     </div>
   );
 };

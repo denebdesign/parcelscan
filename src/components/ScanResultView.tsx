@@ -514,16 +514,16 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200">
                   <tr>
-                    <th className="w-8 px-3 py-3 text-center">선택</th>
-                    <th className="w-10 px-2 py-3 text-center">No</th>
-                    <th className="w-20 px-3 py-3 text-center">상태</th>
-                    <th className="px-3 py-3 font-bold text-slate-800">받는분</th>
-                    <th className="px-3 py-3">연락처</th>
-                    <th className="px-3 py-3">주소(도로명) / 상세주소</th>
-                    <th className="w-24 px-3 py-3 font-bold text-blue-900">상품명</th>
-                    <th className="w-14 px-2 py-3 text-center">수량</th>
-                    <th className="px-3 py-3">배송메모</th>
-                    <th className="w-20 px-3 py-3 text-right">수정/관리</th>
+                    <th className="w-14 px-2 py-3 text-center whitespace-nowrap">선택</th>
+                    <th className="w-12 px-2 py-3 text-center whitespace-nowrap">No</th>
+                    <th className="w-20 px-3 py-3 text-center whitespace-nowrap">상태</th>
+                    <th className="px-3 py-3 font-bold text-slate-800 whitespace-nowrap">받는분</th>
+                    <th className="px-3 py-3 whitespace-nowrap">연락처</th>
+                    <th className="px-3 py-3 whitespace-nowrap">주소(도로명) / 상세주소</th>
+                    <th className="w-24 px-3 py-3 font-bold text-blue-900 whitespace-nowrap">상품명</th>
+                    <th className="w-14 px-2 py-3 text-center whitespace-nowrap">수량</th>
+                    <th className="px-3 py-3 whitespace-nowrap">배송메모</th>
+                    <th className="w-20 px-3 py-3 text-right whitespace-nowrap">수정/관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

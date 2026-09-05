@@ -19,7 +19,39 @@ export interface ParcelItem {
   selected?: boolean;
 }
 
-export type CourierType = 'cj' | 'lotte' | 'hanjin' | 'post' | 'logen' | 'standard';
+export type CourierType = 'cj' | 'lotte' | 'hanjin' | 'post' | 'logen' | 'standard' | 'custom';
+
+export type CustomFieldKey =
+  | 'index'
+  | 'recipientName'
+  | 'phone'
+  | 'phone2'
+  | 'zipCode'
+  | 'address'
+  | 'detailAddress'
+  | 'fullAddress'
+  | 'itemName'
+  | 'quantity'
+  | 'memo'
+  | 'paymentType'
+  | 'senderName'
+  | 'senderPhone'
+  | 'senderAddress'
+  | 'customNote';
+
+export interface CustomFieldSetting {
+  id: string;
+  fieldKey: CustomFieldKey;
+  label: string;
+  enabled: boolean;
+  defaultValue?: string;
+}
+
+export interface UserExcelTemplate {
+  name: string;
+  addressMerge: boolean; // true: 주소 합치기, false: 도로명/상세 분리
+  fields: CustomFieldSetting[];
+}
 
 export interface CourierConfig {
   id: CourierType;

@@ -1,5 +1,52 @@
 import * as XLSX from 'xlsx';
-import { ParcelItem, CourierType, CourierConfig, SenderProfile } from '../types';
+import { ParcelItem, CourierType, CourierConfig, SenderProfile, UserExcelTemplate, CustomFieldKey } from '../types';
+
+export const USER_EXCEL_TEMPLATE_STORAGE_KEY = 'parcelscan_user_custom_template_v2';
+
+export const DEFAULT_USER_EXCEL_TEMPLATE: UserExcelTemplate = {
+  name: '나만의 맞춤 양식',
+  addressMerge: true, // 기본: 주소 한 칸으로 합치기
+  fields: [
+    { id: 'f-1', fieldKey: 'recipientName', label: '받는분성명', enabled: true },
+    { id: 'f-2', fieldKey: 'phone', label: '전화번호', enabled: true },
+    { id: 'f-3', fieldKey: 'zipCode', label: '우편번호', enabled: true },
+    { id: 'f-4', fieldKey: 'fullAddress', label: '받는분주소(전체)', enabled: true },
+    { id: 'f-5', fieldKey: 'itemName', label: '품목명', enabled: true },
+    { id: 'f-6', fieldKey: 'quantity', label: '수량', enabled: true },
+    { id: 'f-7', fieldKey: 'memo', label: '배송요청사항', enabled: true },
+    { id: 'f-8', fieldKey: 'paymentType', label: '운임구분', enabled: true, defaultValue: '신용' },
+    { id: 'f-9', fieldKey: 'senderName', label: '보내는분', enabled: true },
+    { id: 'f-10', fieldKey: 'senderPhone', label: '보내는분전화번호', enabled: true },
+    { id: 'f-11', fieldKey: 'address', label: '기본주소(도로명)', enabled: false },
+    { id: 'f-12', fieldKey: 'detailAddress', label: '상세주소', enabled: false },
+    { id: 'f-13', fieldKey: 'phone2', label: '기타연락처', enabled: false },
+    { id: 'f-14', fieldKey: 'senderAddress', label: '보내는분주소', enabled: false },
+    { id: 'f-15', fieldKey: 'index', label: '순번', enabled: false },
+  ],
+};
+
+export function loadUserExcelTemplate(): UserExcelTemplate {
+  try {
+    const raw = localStorage.getItem(USER_EXCEL_TEMPLATE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.fields)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load user custom excel template', e);
+  }
+  return DEFAULT_USER_EXCEL_TEMPLATE;
+}
+
+export function saveUserExcelTemplate(tmpl: UserExcelTemplate): void {
+  try {
+    localStorage.setItem(USER_EXCEL_TEMPLATE_STORAGE_KEY, JSON.stringify(tmpl));
+  } catch (e) {
+    console.error('Failed to save user custom excel template', e);
+  }
+}
 
 export const COURIER_CONFIGS: Record<CourierType, CourierConfig> = {
   cj: {
@@ -139,6 +186,16 @@ export const COURIER_CONFIGS: Record<CourierType, CourierConfig> = {
       '보내는분연락처',
     ],
   },
+  custom: {
+    id: 'custom',
+    name: '★ 내 맞춤 양식',
+    code: 'CUSTOM',
+    color: 'border-amber-500 text-amber-700',
+    badgeBg: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+    badgeText: '★ 맞춤 엑셀',
+    description: '내가 직접 설정한 컬럼 순서 및 이름으로 출력되는 전용 엑셀 양식',
+    headers: [], // dynamic from template
+  },
 };
 
 /**
@@ -149,6 +206,60 @@ export function formatDataForCourier(
   courier: CourierType,
   sender: SenderProfile
 ): { headers: string[]; rows: (string | number)[][] } {
+  if (courier === 'custom') {
+    const tmpl = loadUserExcelTemplate();
+    const activeFields = tmpl.fields.filter((f) => f.enabled);
+    const headers = activeFields.map((f) => f.label || '항목');
+
+    const rows = items.map((item, index) => {
+      const sName = item.senderName || sender.name || '농원/발송처';
+      const sPhone = item.senderPhone || sender.phone || '010-0000-0000';
+      const sAddress = item.senderAddress || `${sender.address} ${sender.detailAddress}`.trim() || '발송지 주소';
+      const fullAddress = `${item.address} ${item.detailAddress}`.trim();
+
+      return activeFields.map((field) => {
+        switch (field.fieldKey) {
+          case 'index':
+            return index + 1;
+          case 'recipientName':
+            return item.recipientName || '';
+          case 'phone':
+            return item.phone || '';
+          case 'phone2':
+            return item.phone || '';
+          case 'zipCode':
+            return item.zipCode || '63047';
+          case 'address':
+            return item.address || '';
+          case 'detailAddress':
+            return item.detailAddress || '';
+          case 'fullAddress':
+            return fullAddress;
+          case 'itemName':
+            return item.itemName || sender.defaultItem || '택배상품';
+          case 'quantity':
+            return item.quantity || 1;
+          case 'memo':
+            return item.memo || '';
+          case 'paymentType':
+            return field.defaultValue || '신용';
+          case 'senderName':
+            return sName;
+          case 'senderPhone':
+            return sPhone;
+          case 'senderAddress':
+            return sAddress;
+          case 'customNote':
+            return field.defaultValue || '';
+          default:
+            return '';
+        }
+      });
+    });
+
+    return { headers, rows };
+  }
+
   const config = COURIER_CONFIGS[courier] || COURIER_CONFIGS.cj;
   const headers = config.headers;
 

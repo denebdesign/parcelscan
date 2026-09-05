@@ -150,12 +150,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {currentDisplayName}
             </span>
           </div>
-          <button
-            onClick={onStartNewScan}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-          >
-            + 새 접수 추가
-          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
