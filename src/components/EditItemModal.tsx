@@ -12,9 +12,11 @@ import {
   Package, 
   Boxes,
   HelpCircle,
-  FileText
+  FileText,
+  Store,
+  RotateCcw
 } from 'lucide-react';
-import { ParcelItem, CustomerContact } from '../types';
+import { ParcelItem, CustomerContact, SenderProfile } from '../types';
 
 interface EditItemModalProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ interface EditItemModalProps {
   onSave: (updatedItem: ParcelItem) => void;
   onDelete: (itemId: string) => void;
   customers: CustomerContact[];
+  senderProfile?: SenderProfile;
 }
 
 declare global {
@@ -45,6 +48,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   onSave,
   onDelete,
   customers,
+  senderProfile,
 }) => {
   if (!isOpen || !item) return null;
 
@@ -52,7 +56,11 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   const [matchedCustomer, setMatchedCustomer] = useState<CustomerContact | null>(null);
 
   useEffect(() => {
-    setFormData({ ...item });
+    setFormData({
+      ...item,
+      senderName: item.senderName || senderProfile?.name || '',
+      senderPhone: item.senderPhone || senderProfile?.phone || '',
+    });
     // Check if matches any existing customer in book
     const match = customers.find(
       (c) =>
@@ -60,7 +68,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
         (item.phone && c.phone.replace(/[^0-9]/g, '') === item.phone.replace(/[^0-9]/g, ''))
     );
     setMatchedCustomer(match || null);
-  }, [item, customers]);
+  }, [item, customers, senderProfile]);
 
   // Open Daum Postcode Search Popup
   const handleOpenDaumPostcode = () => {
@@ -96,7 +104,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
     }).open();
   };
 
-  // Auto format phone number
+  // Auto format recipient phone number
   const handlePhoneChange = (val: string) => {
     const raw = val.replace(/[^0-9]/g, '');
     let formatted = val;
@@ -110,6 +118,33 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
       }
     }
     setFormData((prev) => ({ ...prev, phone: formatted }));
+  };
+
+  // Auto format sender phone number
+  const handleSenderPhoneChange = (val: string) => {
+    const raw = val.replace(/[^0-9]/g, '');
+    let formatted = val;
+    if (raw.length === 11) {
+      formatted = `${raw.slice(0, 3)}-${raw.slice(3, 7)}-${raw.slice(7)}`;
+    } else if (raw.length === 10) {
+      if (raw.startsWith('02')) {
+        formatted = `${raw.slice(0, 2)}-${raw.slice(2, 6)}-${raw.slice(6)}`;
+      } else {
+        formatted = `${raw.slice(0, 3)}-${raw.slice(3, 6)}-${raw.slice(6)}`;
+      }
+    } else if (raw.length === 9 && raw.startsWith('02')) {
+      formatted = `${raw.slice(0, 2)}-${raw.slice(2, 5)}-${raw.slice(5)}`;
+    }
+    setFormData((prev) => ({ ...prev, senderPhone: formatted }));
+  };
+
+  // Reset sender to default profile
+  const handleResetSender = () => {
+    setFormData((prev) => ({
+      ...prev,
+      senderName: senderProfile?.name || '',
+      senderPhone: senderProfile?.phone || '',
+    }));
   };
 
   // Apply matched customer details
@@ -132,24 +167,26 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
-        {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-2.5 sm:p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[calc(100dvh-1.25rem)] sm:max-h-[90vh] overflow-hidden transform transition-all">
+        {/* Modal Header (Fixed at top, never clipped on mobile) */}
+        <div className="shrink-0 px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
               {formData.cellNumber || '#'}
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">택배 배송 정보 확인 및 수정</h3>
-              <p className="text-xs text-slate-500">
-                수취인 정보와 도로명 주소를 정밀하게 검증합니다.
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">택배 배송 정보 확인 및 수정</h3>
+              <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-1">
+                보내는 분 및 받는 분 주소 정보를 정밀하게 확인·수정합니다.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors"
+            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer shrink-0"
+            title="닫기"
           >
             <X className="w-5 h-5" />
           </button>
@@ -157,7 +194,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
         {/* Matched Customer Alert */}
         {matchedCustomer && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs flex items-center justify-between">
+          <div className="shrink-0 mx-4 sm:mx-6 mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-blue-600 shrink-0" />
               <div>
@@ -168,15 +205,15 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             <button
               type="button"
               onClick={() => applyCustomer(matchedCustomer)}
-              className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shrink-0"
+              className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shrink-0 cursor-pointer"
             >
               주소 불러오기
             </button>
           </div>
         )}
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+        {/* Scrollable Form Body */}
+        <form id="edit-item-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
           {/* Status & Validation Message */}
           {formData.validationNotes && (
             <div
@@ -199,36 +236,96 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             </div>
           )}
 
-          {/* Row 1: Recipient Name & Phone */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                받는분 (수취인명) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
+          {/* Section: Sender (보내는 분 정보) */}
+          <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/90 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                <Store className="w-3.5 h-3.5 text-blue-600" />
+                <span>보내는 분 (발송인 정보)</span>
+              </div>
+              {senderProfile && (
+                <button
+                  type="button"
+                  onClick={handleResetSender}
+                  title="기본 취급소/사업장 발송인 정보로 복원"
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  기본 발송인 적용
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">
+                  보내는 사람 (성함/상호)
+                </label>
                 <input
                   type="text"
-                  required
-                  value={formData.recipientName}
-                  onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
-                  placeholder="예: 김철수"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                  value={formData.senderName || ''}
+                  onChange={(e) => setFormData({ ...formData, senderName: e.target.value })}
+                  placeholder={senderProfile?.name || '평대취급소'}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">
+                  보내는 분 연락처
+                </label>
+                <input
+                  type="text"
+                  value={formData.senderPhone || ''}
+                  onChange={(e) => handleSenderPhoneChange(e.target.value)}
+                  placeholder={senderProfile?.phone || '010-0000-0000'}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium font-mono"
                 />
               </div>
             </div>
+            <p className="text-[11px] text-slate-400">
+              ※ 비워두시면 기본 발송인({senderProfile?.name || '평대취급소'}) 정보로 엑셀 송장에 출력됩니다.
+            </p>
+          </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                연락처 (휴대폰) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.phone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                placeholder="예: 010-1234-5678"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
-              />
+          {/* Section: Recipient (받는 분 정보) */}
+          <div className="pt-1">
+            <div className="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-blue-600" />
+              <span>받는 분 (수취인 정보)</span>
+            </div>
+
+            {/* Row 1: Recipient Name & Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  받는분 (수취인명) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formData.recipientName}
+                    onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
+                    placeholder="예: 김철수"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  연락처 (휴대폰) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  placeholder="예: 010-1234-5678"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                />
+              </div>
             </div>
           </div>
 
@@ -362,37 +459,38 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               </button>
             </div>
           </div>
+        </form>
 
-          {/* Action Buttons */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+        {/* Modal Fixed Footer (Always visible, easy thumb reach) */}
+        <div className="shrink-0 px-4 sm:px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => onDelete(item.id)}
+            className="px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>삭제</span>
+          </button>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => onDelete(item.id)}
-              className="px-3.5 py-2.5 rounded-xl text-red-600 hover:bg-red-50 text-xs font-bold transition-colors flex items-center gap-1.5"
+              onClick={onClose}
+              className="px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold cursor-pointer active:scale-95 transition-colors"
             >
-              <Trash2 className="w-4 h-4" />
-              삭제
+              취소
             </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold"
-              >
-                취소
-              </button>
-
-              <button
-                type="submit"
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-1.5"
-              >
-                <Save className="w-4 h-4" />
-                저장하기
-              </button>
-            </div>
+            <button
+              type="submit"
+              form="edit-item-modal-form"
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <Save className="w-4 h-4" />
+              <span>저장하기</span>
+            </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

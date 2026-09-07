@@ -102,7 +102,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     quantity: 1,
     memo: '문 앞 보관',
     status: 'VALID',
-    validationNotes: '보내는 분 및 받는 분 연락처·주소 정상 확인됨',
+    validationNotes: '주소 및 연락처 정상 확인됨',
   },
   {
     id: 'scan-item-2',
@@ -118,7 +118,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     quantity: 2,
     memo: '배송 전 연락바랍니다',
     status: 'VALID',
-    validationNotes: '정상 주소 및 연락처 확인됨',
+    validationNotes: '주소 및 연락처 정상 확인됨',
   },
   {
     id: 'scan-item-3',
@@ -134,7 +134,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     quantity: 1,
     memo: '직접 수령',
     status: 'VALID',
-    validationNotes: '정상 도로명 주소 매칭',
+    validationNotes: '주소 및 연락처 정상 확인됨',
   },
   {
     id: 'scan-item-4',
@@ -150,7 +150,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     quantity: 1,
     memo: '경비실 보관',
     status: 'VALID',
-    validationNotes: '정상 주소 및 연락처 확인됨',
+    validationNotes: '주소 및 연락처 정상 확인됨',
   },
 ];
 

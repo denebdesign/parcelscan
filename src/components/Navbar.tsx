@@ -30,24 +30,24 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Brand Logo & Business Workspace Info */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <button
               id="nav-logo-btn"
               onClick={() => setCurrentTab('dashboard')}
-              className="flex items-center gap-2.5 text-left group focus:outline-none cursor-pointer"
+              className="flex items-center gap-2 sm:gap-2.5 text-left group focus:outline-none cursor-pointer"
             >
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20 group-hover:bg-blue-700 transition-colors">
-                <Package className="w-5 h-5" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20 group-hover:bg-blue-700 transition-colors shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
+              <div className="shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-base tracking-tight text-slate-900">택배스캔</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-900 whitespace-nowrap">택배스캔</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap shrink-0">
                     AI 전산화
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium truncate max-w-[140px]">
-                  {sender.name ? `${sender.name} 워크스페이스` : '손글씨 주소 송장 자동화'}
+                <div className="hidden sm:block text-[11px] text-slate-500 font-medium truncate max-w-[160px]">
+                  {sender.name ? `${sender.name} 발송처` : '손글씨 주소 송장 자동화'}
                 </div>
               </div>
             </button>
@@ -113,24 +113,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Right: Store Settings & Quick Scan CTA */}
-          <div className="flex items-center gap-2">
-            {/* Store / Agency Settings (보내는 분 정보 및 기본 택배사 설정) */}
+          {/* Right: Sender Profile Settings & Quick Scan CTA */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Sender / Agency Settings (보내는 분 정보 및 기본 택배사 설정) */}
             <button
               id="btn-store-settings"
               onClick={onOpenSettings}
-              title="보내는 분 정보 및 기본 택배사 설정"
-              className="h-9 flex items-center justify-center gap-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors shadow-2xs cursor-pointer"
+              title="보내는 분(발송인 성함, 연락처, 주소) 및 기본 택배사 설정"
+              className="h-8 sm:h-9 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] sm:text-xs font-bold text-slate-700 transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
             >
               <Store className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span>{sender.name ? `${sender.name} 설정` : '보내는 분 설정'}</span>
+              <span className="hidden xs:inline sm:inline">보내는 분 설정</span>
+              <span className="inline xs:hidden">보내는 분</span>
+              {sender.name && (
+                <span className="hidden md:inline font-normal text-slate-400 max-w-[80px] truncate">
+                  ({sender.name})
+                </span>
+              )}
             </button>
 
             {/* Quick New Scan CTA */}
             <button
               id="btn-quick-new-scan"
               onClick={() => setCurrentTab('scan')}
-              className="h-9 flex items-center justify-center gap-1.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs shadow-blue-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              className="h-8 sm:h-9 flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] sm:text-xs font-bold shadow-xs shadow-blue-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
             >
               <Sparkles className="w-3.5 h-3.5 text-yellow-300 shrink-0" />
               <span>새 접수 촬영</span>

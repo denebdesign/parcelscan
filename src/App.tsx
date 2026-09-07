@@ -239,6 +239,8 @@ export default function App() {
 
         if (matchedCust) {
           notes = `기존 고객(${matchedCust.name}) 주소 정보와 일치`;
+        } else if (finalStatus === 'VALID') {
+          notes = '주소 및 연락처 정상 확인됨';
         }
 
         let cleanItemName = (raw.itemName || sender.defaultItem || '과일/농산물').trim();
@@ -575,6 +577,7 @@ export default function App() {
         onSave={handleSaveEditedItem}
         onDelete={handleDeleteItem}
         customers={customers}
+        senderProfile={sender}
       />
 
       <BulkApplyModal

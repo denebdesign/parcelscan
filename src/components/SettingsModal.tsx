@@ -42,9 +42,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Store className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">취급점 설정</h3>
+              <h3 className="font-bold text-slate-900 text-base">보내는 분 (발송인) 및 사업장 설정</h3>
               <p className="text-xs text-slate-500">
-                A4 접수 양식 및 택배사 엑셀 파일에 적용될 취급점(보내는 분) 정보입니다.
+                택배 송장 인쇄 및 엑셀 다운로드 시 적용될 기본 보내는 분(발송인) 정보입니다.
               </p>
             </div>
           </div>
@@ -61,14 +61,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Sender / Store Name */}
           <div>
             <label className="block font-bold text-slate-700 mb-1">
-              취급점 상호명 또는 대표자 성함 *
+              보내는 분 성함 또는 상호명 (발송인) <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="예: 제주바람농원 (김대표)"
+              placeholder="예: 평대취급소 또는 제주바람농원 (김대표)"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white"
             />
           </div>
@@ -77,7 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 mb-1">
-                취급점 대표 연락처 (휴대폰) *
+                보내는 분 연락처 (휴대폰) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -89,7 +89,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">일반 전화번호</label>
+              <label className="block font-bold text-slate-700 mb-1">보내는 분 유선전화 (선택)</label>
               <input
                 type="text"
                 value={formData.tel || ''}
@@ -103,7 +103,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Sender Address */}
           <div>
             <label className="block font-bold text-slate-700 mb-1">
-              취급점 도로명 주소 (보내는 곳) *
+              보내는 분 도로명 주소 (반송지/발송지) <span className="text-red-500">*</span>
             </label>
             <input
               type="text"

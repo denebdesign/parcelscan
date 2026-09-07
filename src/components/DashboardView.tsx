@@ -152,72 +152,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Total Items */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">오늘 접수 건수</span>
-              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Package className="w-5 h-5" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500 truncate">오늘 접수 건수</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 {todayStats.totalItems}
               </span>
-              <span className="text-sm font-medium text-slate-500">건</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">건</span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">사진 인식 완료된 수취인 수</p>
+            <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-slate-400 truncate">인식 완료 수취인</p>
           </div>
 
           {/* Total Boxes */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">오늘 총 박스 수량</span>
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Boxes className="w-5 h-5" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500 truncate">오늘 총 박스 수량</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <Boxes className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 {todayStats.totalBoxes}
               </span>
-              <span className="text-sm font-medium text-slate-500">박스</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">박스</span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">송장 인쇄 예정 실물 박스 합계</p>
+            <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-slate-400 truncate">송장 인쇄용 실물 박스</p>
           </div>
 
           {/* Review Required */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">확인·수정 필요</span>
-              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <AlertCircle className="w-5 h-5" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500 truncate">확인·수정 필요</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className={`text-3xl font-extrabold tracking-tight ${todayStats.warningCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+            <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
+              <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${todayStats.warningCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
                 {todayStats.warningCount}
               </span>
-              <span className="text-sm font-medium text-slate-500">건</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">건</span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">상세주소/연락처 재확인 권장</p>
+            <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-slate-400 truncate">주소/연락처 재확인 권장</p>
           </div>
 
           {/* System Accuracy / Complete rate */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">AI 주소 자동 정제율</span>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-500 truncate">AI 주소 자동 정제율</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">
+            <div className="mt-2 sm:mt-3 flex items-baseline gap-1 sm:gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight">
                 98.6%
               </span>
             </div>
-            <p className="mt-2 text-xs text-slate-400">도로명 주소 및 우편번호 자동 매칭</p>
+            <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-slate-400 truncate">도로명/우편번호 자동매칭</p>
           </div>
         </div>
       </div>

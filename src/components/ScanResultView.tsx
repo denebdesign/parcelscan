@@ -20,7 +20,10 @@ import {
   LayoutDashboard,
   History,
   Undo2,
-  X
+  X,
+  Phone,
+  LayoutList,
+  Table
 } from 'lucide-react';
 import { ParcelItem, CourierType, SenderProfile, CustomerContact, BatchRecord } from '../types';
 import { COURIER_CONFIGS, exportToExcel } from '../utils/excelExporter';
@@ -70,6 +73,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
   );
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VALID' | 'NEEDS_REVIEW' | 'ERROR'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [mobileViewMode, setMobileViewMode] = useState<'card' | 'table'>('card');
   const [deleteToast, setDeleteToast] = useState<{ message: string; backup: ParcelItem[] } | null>(null);
   const [isResolvingPostcodes, setIsResolvingPostcodes] = useState(false);
 
@@ -154,6 +158,17 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
   const selectedItems = items.filter((i) => i.selected);
   const isAllSelected = items.length > 0 && selectedItems.length === items.length;
 
+  // Unify and standardize validation notes for visual consistency
+  const normalizeValidationNote = (status?: string, note?: string) => {
+    if (status === 'VALID') {
+      if (!note || note.includes('확인됨') || note.includes('매칭') || note.includes('정상')) {
+        return '주소 및 연락처 정상 확인됨';
+      }
+      return note;
+    }
+    return note || '';
+  };
+
   // Filtered items
   const filteredItems = items.filter((item) => {
     if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
@@ -233,11 +248,12 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
           <button
             id="btn-back-to-batch-list"
             onClick={onBackToList}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-all border border-slate-200/80 active:scale-95 shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-all border border-slate-200/80 active:scale-95 shadow-2xs shrink-0 cursor-pointer"
             title="접수 이력 보관함 목록으로 돌아갑니다"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>← 접수 목록으로 돌아가기</span>
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">접수 목록으로 돌아가기</span>
+            <span className="sm:hidden">접수 목록</span>
           </button>
 
           <span className="text-slate-300 hidden sm:inline">|</span>
@@ -268,7 +284,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
         {/* Right: Switch between different scanned batches */}
         {batches.length > 1 && (
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 font-medium hidden md:inline">다른 접수 회차 보기:</span>
+            <span className="text-slate-500 font-medium hidden md:inline">다른 접수 회차:</span>
             <div className="relative">
               <select
                 id="select-active-batch"
@@ -279,7 +295,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                     onSelectBatch(target);
                   }
                 }}
-                className="appearance-none pl-3 pr-8 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                className="appearance-none pl-2.5 pr-7 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs max-w-[150px] sm:max-w-none truncate"
               >
                 {batches.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -287,109 +303,115 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         )}
       </div>
 
       {/* Top Header & Overview bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                <FileSpreadsheet className="w-5 h-5" />
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
+                <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight break-keep">
                 {activeBatchTitle ? `${activeBatchTitle} - 상세 확인` : '인식 결과 확인 및 수정'}
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
                 총 {items.length}건 ({totalBoxes}박스)
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1.5 break-keep">
               AI가 추출한 데이터를 확인하고, 필요한 경우 주소 검색이나 대량 일괄 적용을 진행하세요.
             </p>
           </div>
 
           {/* Quick Actions & Excel Download */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Courier Selector */}
-            <div className="relative">
-              <select
-                id="select-courier"
-                value={selectedCourier}
-                onChange={(e) => {
-                  const newCourier = e.target.value as CourierType;
-                  setSelectedCourier(newCourier);
-                  if (activeBatchId && onUpdateBatchCourier) {
-                    onUpdateBatchCourier(activeBatchId, newCourier);
-                  }
-                }}
-                className="appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          <div className="flex flex-col sm:flex-row flex-wrap sm:items-center gap-2 sm:gap-2.5">
+            {/* Row 1 on mobile: Courier Select + Auto Postcode */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Courier Selector */}
+              <div className="relative flex-1 sm:flex-none">
+                <select
+                  id="select-courier"
+                  value={selectedCourier}
+                  onChange={(e) => {
+                    const newCourier = e.target.value as CourierType;
+                    setSelectedCourier(newCourier);
+                    if (activeBatchId && onUpdateBatchCourier) {
+                      onUpdateBatchCourier(activeBatchId, newCourier);
+                    }
+                  }}
+                  className="w-full sm:w-auto appearance-none pl-3 pr-8 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                >
+                  {Object.values(COURIER_CONFIGS).map((cfg) => (
+                    <option key={cfg.id} value={cfg.id}>
+                      {cfg.name} 양식
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Postal Code Auto-Refine Button */}
+              <button
+                id="btn-batch-resolve-postcodes"
+                onClick={handleBatchResolvePostcodes}
+                disabled={isResolvingPostcodes}
+                className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+                title="도로명주소 공식 DB와 연동하여 모든 행의 5자리 우편번호를 정확히 검증/정제합니다"
               >
-                {Object.values(COURIER_CONFIGS).map((cfg) => (
-                  <option key={cfg.id} value={cfg.id}>
-                    {cfg.name} 양식
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Sparkles className={`w-3.5 h-3.5 text-blue-600 ${isResolvingPostcodes ? 'animate-spin' : ''}`} />
+                <span>{isResolvingPostcodes ? '정제 중...' : '우편번호 자동정제'}</span>
+              </button>
             </div>
 
-            {/* Postal Code Auto-Refine Button */}
-            <button
-              id="btn-batch-resolve-postcodes"
-              onClick={handleBatchResolvePostcodes}
-              disabled={isResolvingPostcodes}
-              className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-              title="도로명주소 공식 DB와 연동하여 모든 행의 5자리 우편번호를 정확히 검증/정제합니다"
-            >
-              <Sparkles className={`w-3.5 h-3.5 text-blue-600 ${isResolvingPostcodes ? 'animate-spin' : ''}`} />
-              <span>{isResolvingPostcodes ? '우편번호 DB 조회 중...' : '우편번호 자동정제'}</span>
-            </button>
+            {/* Row 2 on mobile: Preview + Download Excel + ReScan */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Excel Preview Button */}
+              <button
+                id="btn-open-excel-preview"
+                onClick={() => onOpenExcelPreview(selectedCourier)}
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <Eye className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>미리보기</span>
+              </button>
 
-            {/* Excel Preview Button */}
-            <button
-              id="btn-open-excel-preview"
-              onClick={() => onOpenExcelPreview(selectedCourier)}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-blue-600" />
-              <span>미리보기</span>
-            </button>
+              {/* Excel Direct Download Button */}
+              <button
+                id="btn-quick-download-excel"
+                onClick={handleQuickDownload}
+                className="flex-2 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              >
+                <Download className="w-4 h-4 shrink-0" />
+                <span>엑셀 다운로드 (.xlsx)</span>
+              </button>
 
-            {/* Excel Direct Download Button */}
-            <button
-              id="btn-quick-download-excel"
-              onClick={handleQuickDownload}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Download className="w-4 h-4" />
-              <span>엑셀 다운로드 (.xlsx)</span>
-            </button>
-
-            {/* Re-Scan Button */}
-            <button
-              onClick={onReScan}
-              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
-              title="다른 사진 다시 인식"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+              {/* Re-Scan Button */}
+              <button
+                onClick={onReScan}
+                className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shrink-0 cursor-pointer"
+                title="다른 사진 다시 인식"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Filter and Status Counter row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
           {/* Status Badges Filter */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                 statusFilter === 'ALL'
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-slate-900 text-white shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -398,9 +420,9 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
 
             <button
               onClick={() => setStatusFilter('VALID')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                 statusFilter === 'VALID'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
                   : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
               }`}
             >
@@ -410,9 +432,9 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
 
             <button
               onClick={() => setStatusFilter('NEEDS_REVIEW')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                 statusFilter === 'NEEDS_REVIEW'
-                  ? 'bg-amber-500 text-white shadow-xs'
+                  ? 'bg-amber-500 text-white shadow-2xs'
                   : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
               }`}
             >
@@ -423,9 +445,9 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
             {errorCount > 0 && (
               <button
                 onClick={() => setStatusFilter('ERROR')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   statusFilter === 'ERROR'
-                    ? 'bg-red-600 text-white shadow-xs'
+                    ? 'bg-red-600 text-white shadow-2xs'
                     : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
                 }`}
               >
@@ -453,7 +475,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
             <button
               id="btn-add-row"
               onClick={onAddNewRow}
-              className="px-3.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-colors shrink-0 border border-blue-200 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-colors shrink-0 border border-blue-200 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>행 추가</span>
@@ -466,19 +488,49 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
       <div className="space-y-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           {/* Table Action Sub-header */}
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleToggleSelectAll}
-                className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
+                className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-slate-900 cursor-pointer select-none"
               >
                 {isAllSelected ? (
-                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                  <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                 ) : (
-                  <Square className="w-4 h-4 text-slate-400" />
+                  <Square className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
                 <span>전체 선택 ({selectedItems.length}/{items.length})</span>
               </button>
+
+              {/* View Mode Switcher (Card vs Table) */}
+              <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setMobileViewMode('card')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    mobileViewMode === 'card'
+                      ? 'bg-white text-blue-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="카드형 목록 보기 (모바일 가독성 최적화)"
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span>카드 뷰</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileViewMode('table')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    mobileViewMode === 'table'
+                      ? 'bg-white text-blue-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="표 테이블 전체 보기"
+                >
+                  <Table className="w-3.5 h-3.5" />
+                  <span>표 뷰</span>
+                </button>
+              </div>
             </div>
 
             {/* Bulk Edit Actions when items selected */}
@@ -487,7 +539,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                 <button
                   id="btn-open-bulk-modal"
                   onClick={() => onOpenBulkModal(selectedItems.length)}
-                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 transition-all"
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>선택 {selectedItems.length}건 일괄 수정</span>
@@ -504,225 +556,408 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
             )}
           </div>
 
-          {/* Table */}
+          {/* Table or Card List */}
           {filteredItems.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-xs">
               조건에 일치하는 배송지 항목이 없습니다.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200">
-                  <tr>
-                    <th className="w-14 px-2 py-3 text-center whitespace-nowrap">선택</th>
-                    <th className="w-12 px-2 py-3 text-center whitespace-nowrap">No</th>
-                    <th className="w-20 px-3 py-3 text-center whitespace-nowrap">상태</th>
-                    <th className="px-3 py-3 font-bold text-slate-800 whitespace-nowrap">받는분</th>
-                    <th className="px-3 py-3 whitespace-nowrap">연락처</th>
-                    <th className="px-3 py-3 whitespace-nowrap">주소(도로명) / 상세주소</th>
-                    <th className="w-24 px-3 py-3 font-bold text-blue-900 whitespace-nowrap">상품명</th>
-                    <th className="w-14 px-2 py-3 text-center whitespace-nowrap">수량</th>
-                    <th className="px-3 py-3 whitespace-nowrap">배송메모</th>
-                    <th className="w-20 px-3 py-3 text-right whitespace-nowrap">수정/관리</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+            <>
+              {/* 1. Mobile & Touch Optimized Card View */}
+              {mobileViewMode === 'card' && (
+                <div className="divide-y divide-slate-100 bg-slate-50/30">
                   {filteredItems.map((item, index) => {
                     const isSelected = !!item.selected;
+                    const cleanPhone = (item.phone || '').replace(/[^0-9]/g, '');
+
                     return (
-                      <tr
+                      <div
                         key={item.id}
-                        className={`hover:bg-blue-50/40 transition-colors group ${
+                        className={`p-3.5 sm:p-4 bg-white hover:bg-blue-50/20 transition-all ${
                           isSelected ? 'bg-blue-50/30' : ''
                         }`}
                       >
-                          {/* Checkbox */}
-                          <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {/* Top: Selection, Index, Status Badge, and Row Actions */}
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 text-xs">
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => handleToggleSelectItem(item.id)}
-                              className="text-slate-400 hover:text-blue-600"
+                              className="cursor-pointer p-0.5"
                             >
                               {isSelected ? (
-                                <CheckSquare className="w-4 h-4 text-blue-600" />
+                                <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
                               ) : (
-                                <Square className="w-4 h-4" />
+                                <Square className="w-4 h-4 text-slate-400 shrink-0" />
                               )}
                             </button>
-                          </td>
-
-                          {/* No / Cell # */}
-                          <td className="px-2 py-3 text-center font-bold text-slate-400">
-                            {item.cellNumber || index + 1}
-                          </td>
-
-                          {/* Status Badge */}
-                          <td className="px-3 py-3 text-center">
+                            <span className="font-mono font-bold text-slate-400 text-[11px]">
+                              #{item.cellNumber || index + 1}
+                            </span>
+                            {/* Status Badge */}
                             {item.status === 'VALID' ? (
-                              <span
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                title={item.validationNotes || '정상 데이터'}
-                              >
-                                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
                                 정상
                               </span>
                             ) : item.status === 'NEEDS_REVIEW' ? (
                               <button
+                                type="button"
                                 onClick={() => onEditItem(item)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors"
-                                title={item.validationNotes || '수정 필요'}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors cursor-pointer"
                               >
-                                <AlertCircle className="w-3 h-3 text-amber-500" />
+                                <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
                                 수정필요
                               </button>
                             ) : (
                               <button
+                                type="button"
                                 onClick={() => onEditItem(item)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                                title={item.validationNotes || '오류'}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
                               >
-                                <AlertCircle className="w-3 h-3 text-red-500" />
+                                <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />
                                 오류
                               </button>
                             )}
-                          </td>
+                          </div>
 
-                          {/* Recipient Name */}
-                          <td className="px-3 py-3">
-                            <div className="font-extrabold text-slate-900 text-xs">
-                              {item.recipientName || '(이름 없음)'}
-                            </div>
-                          </td>
+                          {/* Quick Actions (Edit, Copy, Delete) - Fixed at top right for 100% position consistency */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => onEditItem(item)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100/80 rounded-lg transition-colors cursor-pointer"
+                              title="수정"
+                              aria-label="수정"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicateItem(item)}
+                              className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                              title="복사"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id, item.recipientName)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
 
-                          {/* Phone */}
-                          <td className="px-3 py-3 font-mono text-slate-700">
-                            {item.phone || '-'}
-                          </td>
-
-                          {/* Address */}
-                          <td className="px-3 py-3">
-                            <div className="font-semibold text-slate-800">
-                              {item.address}
-                            </div>
-                            {item.detailAddress && (
-                              <div className="text-[11px] text-slate-500">
-                                {item.detailAddress}
-                              </div>
-                            )}
-                            {item.zipCode ? (
-                              <div className="mt-1">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                                  <span className="text-[9px] text-blue-500 font-sans font-normal">우편</span>
-                                  <span>{item.zipCode}</span>
+                        {/* Middle: Recipient & Phone */}
+                        <div className="pt-2.5 pb-2 flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-base font-extrabold text-slate-900">
+                                {item.recipientName || '(받는분 이름 없음)'}
+                              </span>
+                              {item.senderName && item.senderName !== sender.name && (
+                                <span className="inline-block text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                  발송: {item.senderName}
                                 </span>
-                              </div>
-                            ) : (
-                              <div className="mt-1">
-                                <span className="inline-flex items-center text-[10px] text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-200/60">
-                                  우편번호 미입력
-                                </span>
-                              </div>
-                            )}
-                          </td>
+                              )}
+                            </div>
+                          </div>
 
-                          {/* Item Name */}
-                          <td className="px-3 py-3 font-bold text-blue-700">
-                            {item.itemName || sender.defaultItem || '기본 상품'}
-                          </td>
-
-                          {/* Quantity */}
-                          <td className="px-2 py-3 text-center">
-                            <span className="inline-block font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                              {item.quantity || 1}
+                          {/* Phone: Single line badge with direct click-to-call */}
+                          {item.phone ? (
+                            <a
+                              href={`tel:${cleanPhone}`}
+                              className="inline-flex items-center gap-1.5 font-mono font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-xl border border-blue-200/80 transition-colors whitespace-nowrap shrink-0 active:scale-95 shadow-2xs"
+                              title="전화 걸기"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>{item.phone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/60 whitespace-nowrap shrink-0">
+                              연락처 없음
                             </span>
-                          </td>
+                          )}
+                        </div>
 
-                          {/* Memo */}
-                          <td className="px-3 py-3 text-slate-500 text-[11px] max-w-[140px] truncate">
-                            {item.memo || '-'}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="inline-flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEditItem(item);
-                                }}
-                                className="p-1.5 text-blue-600 hover:bg-blue-100/80 rounded-lg transition-colors cursor-pointer"
-                                title="수정"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDuplicateItem(item);
-                                }}
-                                className="p-1.5 text-slate-500 hover:bg-slate-200/80 rounded-lg transition-colors cursor-pointer"
-                                title="복사"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                id={`btn-delete-item-${item.id}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteItem(item.id, item.recipientName);
-                                }}
-                                className="p-1.5 text-red-500 hover:bg-red-100/90 rounded-lg transition-colors cursor-pointer"
-                                title="삭제"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                        {/* Address Box */}
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-xs space-y-1 my-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-bold text-slate-800 leading-snug">
+                              {item.address || '(주소 미입력)'}
+                            </span>
+                            {item.zipCode ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-blue-700 bg-white px-1.5 py-0.5 rounded border border-blue-200 shrink-0">
+                                <span className="text-[9px] text-blue-500 font-sans">우편</span>
+                                <span>{item.zipCode}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70 shrink-0 whitespace-nowrap">
+                                우편번호 필요
+                              </span>
+                            )}
+                          </div>
+                          {item.detailAddress && (
+                            <div className="text-slate-600 font-medium text-[11px]">
+                              {item.detailAddress}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                          )}
+                          {item.validationNotes && (
+                            <div className="text-[10px] text-slate-500 pt-0.5">
+                              {normalizeValidationNote(item.status, item.validationNotes)}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Item Info, Quantity & Memo */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
+                          <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                            {item.itemName || sender.defaultItem || '기본 상품'}
+                          </span>
+                          <span className="font-extrabold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                            {item.quantity || 1}박스
+                          </span>
+                          {item.memo && (
+                            <span className="text-slate-500 text-[11px] truncate max-w-[220px]">
+                              💬 {item.memo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 2. Full Table View */}
+              {mobileViewMode === 'table' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-100/70 text-slate-600 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="w-14 px-2 py-3 text-center whitespace-nowrap">선택</th>
+                        <th className="w-12 px-2 py-3 text-center whitespace-nowrap">No</th>
+                        <th className="w-20 px-3 py-3 text-center whitespace-nowrap">상태</th>
+                        <th className="px-3 py-3 font-bold text-slate-800 whitespace-nowrap">받는분</th>
+                        <th className="px-3 py-3 whitespace-nowrap">연락처</th>
+                        <th className="px-3 py-3 whitespace-nowrap min-w-[220px]">주소(도로명) / 상세주소</th>
+                        <th className="w-24 px-3 py-3 font-bold text-blue-900 whitespace-nowrap">상품명</th>
+                        <th className="w-14 px-2 py-3 text-center whitespace-nowrap">수량</th>
+                        <th className="px-3 py-3 whitespace-nowrap">배송메모</th>
+                        <th className="w-20 px-3 py-3 text-right whitespace-nowrap">수정/관리</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredItems.map((item, index) => {
+                        const isSelected = !!item.selected;
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`hover:bg-blue-50/40 transition-colors group ${
+                              isSelected ? 'bg-blue-50/30' : ''
+                            }`}
+                          >
+                            {/* Checkbox */}
+                            <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSelectItem(item.id)}
+                                className="text-slate-400 hover:text-blue-600 cursor-pointer"
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
+                                )}
+                              </button>
+                            </td>
+
+                            {/* No / Cell # */}
+                            <td className="px-2 py-3 text-center font-bold text-slate-400">
+                              {item.cellNumber || index + 1}
+                            </td>
+
+                            {/* Status Badge */}
+                            <td className="px-3 py-3 text-center">
+                              {item.status === 'VALID' ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap"
+                                  title={item.validationNotes || '정상 데이터'}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  정상
+                                </span>
+                              ) : item.status === 'NEEDS_REVIEW' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onEditItem(item)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors whitespace-nowrap cursor-pointer"
+                                  title={item.validationNotes || '수정 필요'}
+                                >
+                                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                                  수정필요
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => onEditItem(item)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors whitespace-nowrap cursor-pointer"
+                                  title={item.validationNotes || '오류'}
+                                >
+                                  <AlertCircle className="w-3 h-3 text-red-500" />
+                                  오류
+                                </button>
+                              )}
+                            </td>
+
+                            {/* Recipient Name */}
+                            <td className="px-3 py-3">
+                              <div className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
+                                {item.recipientName || '(이름 없음)'}
+                              </div>
+                              {item.senderName && item.senderName !== sender.name && (
+                                <div className="text-[10px] text-blue-600 font-medium whitespace-nowrap mt-0.5">
+                                  발송: {item.senderName}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Phone: guaranteed single line */}
+                            <td className="px-3 py-3 font-mono text-slate-700 whitespace-nowrap font-medium">
+                              {item.phone || '-'}
+                            </td>
+
+                            {/* Address */}
+                            <td className="px-3 py-3">
+                              <div className="font-semibold text-slate-800">
+                                {item.address}
+                              </div>
+                              {item.detailAddress && (
+                                <div className="text-[11px] text-slate-500">
+                                  {item.detailAddress}
+                                </div>
+                              )}
+                              {item.zipCode ? (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                    <span className="text-[9px] text-blue-500 font-sans font-normal">우편</span>
+                                    <span>{item.zipCode}</span>
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center text-[10px] text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-200/60">
+                                    우편번호 미입력
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Item Name */}
+                            <td className="px-3 py-3 font-bold text-blue-700 whitespace-nowrap">
+                              {item.itemName || sender.defaultItem || '기본 상품'}
+                            </td>
+
+                            {/* Quantity */}
+                            <td className="px-2 py-3 text-center whitespace-nowrap">
+                              <span className="inline-block font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
+                                {item.quantity || 1}
+                              </span>
+                            </td>
+
+                            {/* Memo */}
+                            <td className="px-3 py-3 text-slate-500 text-[11px] max-w-[140px] truncate">
+                              {item.memo || '-'}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="inline-flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditItem(item);
+                                  }}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-100/80 rounded-lg transition-colors cursor-pointer"
+                                  title="수정"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicateItem(item);
+                                  }}
+                                  className="p-1.5 text-slate-500 hover:bg-slate-200/80 rounded-lg transition-colors cursor-pointer"
+                                  title="복사"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  id={`btn-delete-item-${item.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteItem(item.id, item.recipientName);
+                                  }}
+                                  className="p-1.5 text-red-500 hover:bg-red-100/90 rounded-lg transition-colors cursor-pointer"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
           </div>
 
           {/* Bottom Navigation & Action Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 shadow-xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
+            {/* Left Navigation Buttons: 2 columns on mobile */}
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
               <button
                 id="btn-bottom-back-list"
                 onClick={onBackToList}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-800 hover:text-blue-700 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-200 shadow-2xs"
+                className="w-full sm:w-auto px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-800 hover:text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200 shadow-2xs whitespace-nowrap cursor-pointer active:scale-95"
               >
-                <ArrowLeft className="w-4 h-4 text-slate-600" />
-                <span>← 전체 접수 목록으로 돌아가기</span>
+                <ArrowLeft className="w-4 h-4 text-slate-600 shrink-0" />
+                <span>접수 목록으로</span>
               </button>
               <button
                 onClick={() => onNavigateTab?.('dashboard')}
-                className="px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold transition-colors flex items-center gap-1"
+                className="w-full sm:w-auto px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-slate-200/80 whitespace-nowrap cursor-pointer active:scale-95"
               >
-                <LayoutDashboard className="w-3.5 h-3.5 text-slate-400" />
-                <span>대시보드로 이동</span>
+                <LayoutDashboard className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>대시보드로</span>
               </button>
             </div>
             
-            <div className="flex items-center gap-2">
+            {/* Right Action Buttons: 2 columns on mobile */}
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
               <button
                 onClick={onReScan}
-                className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-3.5 py-2.5 sm:py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-blue-200/80 whitespace-nowrap active:scale-95"
               >
-                <RotateCcw className="w-4 h-4" />
-                <span>새 사진 추가 촬영/인식</span>
+                <RotateCcw className="w-4 h-4 shrink-0" />
+                <span>새 사진 촬영</span>
               </button>
               <button
                 onClick={handleQuickDownload}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 shrink-0" />
                 <span>엑셀 다운로드</span>
               </button>
             </div>
