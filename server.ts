@@ -16,11 +16,11 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Lazy Google Gen AI client helper
 let aiClient: GoogleGenAI | null = null;
 function getAIClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_KEY;
+  if (!apiKey) {
+    throw new Error("AI 엔진 연결(GEMINI_API_KEY)이 준비 중입니다. 잠시 후 [다시 시도하기]를 눌러주세요.");
+  }
   if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다. Settings > Secrets에서 설정해주세요.");
-    }
     aiClient = new GoogleGenAI({
       apiKey: apiKey,
       httpOptions: {
@@ -36,6 +36,15 @@ function getAIClient(): GoogleGenAI {
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
+});
+
+// AI Service connection status endpoint
+app.get("/api/check-ai-status", (req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_KEY;
+  res.json({
+    ready: !!apiKey,
+    status: apiKey ? "ready" : "waiting_key",
+  });
 });
 
 // ads.txt for Google AdSense Crawler
@@ -138,7 +147,7 @@ async function generateContentWithRetry(
   responseSchema: any
 ) {
   // Primary model and fallback models in case of 503/high demand/rate limits
-  const candidateModels = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"];
+  const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
   let lastError: any = null;
 
   for (const modelName of candidateModels) {

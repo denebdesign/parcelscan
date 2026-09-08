@@ -615,6 +615,8 @@ export default function App() {
               <p className="text-xs text-slate-600 mt-2 leading-relaxed whitespace-pre-wrap">
                 {scanError.message.includes('503') || scanError.message.includes('high demand')
                   ? 'AI 서버에 일시적으로 요청이 몰려 응답이 지연되었습니다.\n아래 [다시 시도하기]를 누르면 즉시 재실행됩니다.'
+                  : scanError.message.includes('GEMINI_API_KEY') || scanError.message.includes('API_KEY')
+                  ? 'AI 엔진 연결이 초기화되었습니다.\n아래 [다시 시도하기]를 누르면 사진 인식이 즉시 시작됩니다.'
                   : scanError.message}
               </p>
             </div>
