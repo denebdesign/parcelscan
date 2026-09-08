@@ -611,12 +611,16 @@ export default function App() {
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">AI 인식 일시 안내</h3>
+              <h3 className="text-lg font-bold text-slate-900">
+                {scanError.message.includes('GEMINI_API_KEY') || scanError.message.includes('API_KEY')
+                  ? 'AI 엔진 키(API Key) 설정 필요'
+                  : 'AI 인식 일시 안내'}
+              </h3>
               <p className="text-xs text-slate-600 mt-2 leading-relaxed whitespace-pre-wrap">
                 {scanError.message.includes('503') || scanError.message.includes('high demand')
                   ? 'AI 서버에 일시적으로 요청이 몰려 응답이 지연되었습니다.\n아래 [다시 시도하기]를 누르면 즉시 재실행됩니다.'
                   : scanError.message.includes('GEMINI_API_KEY') || scanError.message.includes('API_KEY')
-                  ? 'AI 엔진 연결이 초기화되었습니다.\n아래 [다시 시도하기]를 누르면 사진 인식이 즉시 시작됩니다.'
+                  ? '배포 서버(Cloud Run)의 환경 변수에 GEMINI_API_KEY가 등록되어 있지 않습니다.\n\n구글 클라우드 콘솔(Cloud Run) > parcelscan 서비스 > [수정 및 새 버전 배포] > [변수 및 보안 비밀]에서 GEMINI_API_KEY 환경 변수를 등록해주세요.'
                   : scanError.message}
               </p>
             </div>

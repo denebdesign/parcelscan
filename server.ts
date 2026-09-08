@@ -18,7 +18,7 @@ let aiClient: GoogleGenAI | null = null;
 function getAIClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_KEY;
   if (!apiKey) {
-    throw new Error("AI 엔진 연결(GEMINI_API_KEY)이 준비 중입니다. 잠시 후 [다시 시도하기]를 눌러주세요.");
+    throw new Error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다. Cloud Run 콘솔의 [변수 및 보안 비밀]에서 GEMINI_API_KEY를 등록해주세요.");
   }
   if (!aiClient) {
     aiClient = new GoogleGenAI({
