@@ -13,24 +13,53 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Lazy Google Gen AI client helper
-let aiClient: GoogleGenAI | null = null;
-function getAIClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_KEY;
-  if (!apiKey) {
+// Multi-key and lazy Google Gen AI client helper
+function getAvailableApiKeys(): string[] {
+  const candidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API2,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY2,
+    process.env.GEMINI_KEY,
+    process.env.GEMINI_KEY2,
+    process.env.API_KEY,
+    process.env.API_KEY2,
+  ];
+  const uniqueKeys: string[] = [];
+  for (const k of candidates) {
+    if (k && typeof k === "string" && k.trim() && !uniqueKeys.includes(k.trim())) {
+      uniqueKeys.push(k.trim());
+    }
+  }
+  return uniqueKeys;
+}
+
+const aiClientCache = new Map<string, GoogleGenAI>();
+
+function getAIClients(): GoogleGenAI[] {
+  const keys = getAvailableApiKeys();
+  if (keys.length === 0) {
     throw new Error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다. Cloud Run 콘솔의 [변수 및 보안 비밀]에서 GEMINI_API_KEY를 등록해주세요.");
   }
-  if (!aiClient) {
-    aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
+  return keys.map((key) => {
+    let client = aiClientCache.get(key);
+    if (!client) {
+      client = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
         },
-      },
-    });
-  }
-  return aiClient;
+      });
+      aiClientCache.set(key, client);
+    }
+    return client;
+  });
+}
+
+function getAIClient(): GoogleGenAI {
+  return getAIClients()[0];
 }
 
 // Health check endpoint
@@ -40,10 +69,11 @@ app.get("/api/health", (req, res) => {
 
 // AI Service connection status endpoint
 app.get("/api/check-ai-status", (req, res) => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_KEY;
+  const keys = getAvailableApiKeys();
   res.json({
-    ready: !!apiKey,
-    status: apiKey ? "ready" : "waiting_key",
+    ready: keys.length > 0,
+    keyCount: keys.length,
+    status: keys.length > 0 ? "ready" : "waiting_key",
   });
 });
 
@@ -139,9 +169,9 @@ app.delete("/api/mobile-sync/:sessionId", (req, res) => {
 });
 
 
-// Helper to execute generateContent with automatic retry and model fallback
+// Helper to execute generateContent with automatic retry, multi-key failover, and model fallback
 async function generateContentWithRetry(
-  ai: GoogleGenAI,
+  clients: GoogleGenAI[],
   reqContents: any,
   systemPrompt: string,
   responseSchema: any
@@ -150,50 +180,64 @@ async function generateContentWithRetry(
   const candidateModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
   let lastError: any = null;
 
-  for (const modelName of candidateModels) {
-    // Retry up to 3 times per model with backoff
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`Calling Gemini OCR with model: ${modelName} (attempt ${attempt})`);
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: reqContents,
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-            temperature: 0.0, // Strict deterministic OCR without creative hallucination
-          },
-        });
-        return response;
-      } catch (err: any) {
-        lastError = err;
-        const errMsg = err?.message || String(err);
-        console.warn(`Attempt ${attempt} on ${modelName} failed:`, errMsg);
+  for (let clientIdx = 0; clientIdx < clients.length; clientIdx++) {
+    const ai = clients[clientIdx];
+    const keyLabel = `API Key #${clientIdx + 1}/${clients.length}`;
 
-        const isOverload =
-          errMsg.includes("503") ||
-          errMsg.includes("UNAVAILABLE") ||
-          errMsg.includes("high demand") ||
-          errMsg.includes("429") ||
-          errMsg.includes("RESOURCE_EXHAUSTED");
+    for (const modelName of candidateModels) {
+      // Retry up to 2 times per model with backoff
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`Calling Gemini OCR with [${keyLabel}], model: ${modelName} (attempt ${attempt})`);
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: reqContents,
+            config: {
+              systemInstruction: systemPrompt,
+              responseMimeType: "application/json",
+              responseSchema: responseSchema,
+              temperature: 0.0, // Strict deterministic OCR without creative hallucination
+            },
+          });
+          return response;
+        } catch (err: any) {
+          lastError = err;
+          const errMsg = err?.message || String(err);
+          console.warn(`[${keyLabel}] Attempt ${attempt} on ${modelName} failed:`, errMsg);
 
-        if (isOverload && attempt < 3) {
-          // Wait with backoff: 1s, 2s
-          const delay = attempt * 1000 + Math.floor(Math.random() * 500);
-          console.log(`Retrying in ${delay}ms due to high demand/rate limit...`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
+          const isQuotaOrLimit =
+            errMsg.includes("429") ||
+            errMsg.includes("RESOURCE_EXHAUSTED") ||
+            errMsg.includes("quota") ||
+            errMsg.includes("limit");
+
+          const isOverload =
+            isQuotaOrLimit ||
+            errMsg.includes("503") ||
+            errMsg.includes("UNAVAILABLE") ||
+            errMsg.includes("high demand");
+
+          // If quota or rate limit is reached and we have a secondary key, immediately failover to next key!
+          if (isQuotaOrLimit && clientIdx + 1 < clients.length) {
+            console.log(`[${keyLabel}] Quota/rate limit hit. Immediately failing over to next API Key #${clientIdx + 2}...`);
+            break;
+          }
+
+          if (isOverload && attempt < 2) {
+            const delay = attempt * 800 + Math.floor(Math.random() * 400);
+            console.log(`Retrying in ${delay}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
+          if (isOverload) {
+            console.log(`Switching from ${modelName} to next fallback model...`);
+            break;
+          }
+
+          // If it's another non-retriable error, throw immediately
+          throw err;
         }
-
-        // If it's an overload on this model and attempts exhausted, break to next candidate model
-        if (isOverload) {
-          console.log(`Switching from ${modelName} to next fallback model...`);
-          break;
-        }
-
-        // If it's another non-retriable error (e.g. invalid arg), throw immediately
-        throw err;
       }
     }
   }
@@ -335,7 +379,7 @@ app.post("/api/scan-address", async (req, res) => {
     // Clean base64 string if it has data url prefix
     const base64Data = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
 
-    const ai = getAIClient();
+    const aiClients = getAIClients();
 
     const systemPrompt = `
 당신은 대한민국 전국 택배 송장 및 손글씨/인쇄된 주소 접수 용지 전문 초정밀 OCR AI 인식기입니다.
@@ -458,7 +502,7 @@ app.post("/api/scan-address", async (req, res) => {
       },
     };
 
-    const response = await generateContentWithRetry(ai, reqContents, systemPrompt, responseSchema);
+    const response = await generateContentWithRetry(aiClients, reqContents, systemPrompt, responseSchema);
 
     const rawText = response.text || "[]";
     let extractedData = [];
