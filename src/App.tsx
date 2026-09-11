@@ -247,9 +247,15 @@ export default function App() {
         cleanItemName = cleanItemName.replace(/\s*[\(\[\{]\s*\d+\s*(박스|box|상자|포|EA|개|개입)\s*[\)\]\}]/gi, '');
         cleanItemName = cleanItemName.replace(/\s+\d+\s*(박스|box|상자)\s*$/gi, '').trim();
 
+        // Preserve handwritten sender if recognized, otherwise fall back to sender profile setting
+        const recognizedSenderName = (raw.senderName || '').trim();
+        const recognizedSenderPhone = (raw.senderPhone || '').trim();
+
         return {
           id: `scan-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
           cellNumber: raw.cellNumber || idx + 1,
+          senderName: recognizedSenderName || sender.name || '',
+          senderPhone: recognizedSenderPhone || sender.phone || '',
           recipientName: raw.recipientName || '',
           phone: raw.phone || '',
           address: raw.address || '',
@@ -354,6 +360,8 @@ export default function App() {
     const newItem: ParcelItem = {
       id: `manual-${Date.now()}`,
       cellNumber: currentItems.length + 1,
+      senderName: sender.name || '',
+      senderPhone: sender.phone || '',
       recipientName: '',
       phone: '010-',
       address: '',
@@ -382,9 +390,12 @@ export default function App() {
     itemName?: string;
     quantity?: number;
     memo?: string;
+    senderName?: string;
+    senderPhone?: string;
     overrideItemName: boolean;
     overrideQuantity: boolean;
     overrideMemo: boolean;
+    overrideSender: boolean;
   }) => {
     const nextItems = currentItems.map((item) => {
       if (!item.selected) return item;
@@ -393,6 +404,8 @@ export default function App() {
         itemName: data.overrideItemName && data.itemName !== undefined ? data.itemName : item.itemName,
         quantity: data.overrideQuantity && data.quantity !== undefined ? data.quantity : item.quantity,
         memo: data.overrideMemo && data.memo !== undefined ? data.memo : item.memo,
+        senderName: data.overrideSender && data.senderName !== undefined ? data.senderName : item.senderName,
+        senderPhone: data.overrideSender && data.senderPhone !== undefined ? data.senderPhone : item.senderPhone,
       };
     });
     handleUpdateItems(nextItems);
@@ -586,6 +599,8 @@ export default function App() {
         selectedCount={selectedBulkCount}
         onApply={handleApplyBulkData}
         defaultItemName={sender.defaultItem}
+        defaultSenderName={sender.name}
+        defaultSenderPhone={sender.phone}
       />
 
       <ExcelPreviewModal

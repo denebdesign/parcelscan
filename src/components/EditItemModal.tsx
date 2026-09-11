@@ -238,22 +238,48 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
 
           {/* Section: Sender (보내는 분 정보) */}
           <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/90 space-y-2.5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
                 <Store className="w-3.5 h-3.5 text-blue-600" />
                 <span>보내는 분 (발송인 정보)</span>
+                {formData.senderName && senderProfile?.name && formData.senderName !== senderProfile.name ? (
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-100/90 border border-blue-200 px-1.5 py-0.5 rounded">
+                    용지 인식 발송인
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-500 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    기본 발송인 설정
+                  </span>
+                )}
               </div>
-              {senderProfile && (
-                <button
-                  type="button"
-                  onClick={handleResetSender}
-                  title="기본 취급소/사업장 발송인 정보로 복원"
-                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline cursor-pointer"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  기본 발송인 적용
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {item.senderName && senderProfile?.name && item.senderName !== senderProfile.name && formData.senderName !== item.senderName && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({
+                      ...prev,
+                      senderName: item.senderName,
+                      senderPhone: item.senderPhone,
+                    }))}
+                    className="text-[11px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 hover:underline cursor-pointer"
+                    title="용지에서 인식된 원래 발송인 정보로 복원"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    용지 원본 복원
+                  </button>
+                )}
+                {senderProfile && (
+                  <button
+                    type="button"
+                    onClick={handleResetSender}
+                    title="설정 메뉴의 기본 취급소/사업장 발송인 정보로 변경"
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    기본 발송인 적용
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -265,7 +291,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                   type="text"
                   value={formData.senderName || ''}
                   onChange={(e) => setFormData({ ...formData, senderName: e.target.value })}
-                  placeholder={senderProfile?.name || '평대취급소'}
+                  placeholder={senderProfile?.name || '기본 발송인 성함'}
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
                 />
               </div>
@@ -284,7 +310,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
               </div>
             </div>
             <p className="text-[11px] text-slate-400">
-              ※ 비워두시면 기본 발송인({senderProfile?.name || '평대취급소'}) 정보로 엑셀 송장에 출력됩니다.
+              ※ 비워두시면 설정된 기본 발송인({senderProfile?.name || '기본 사업장'}) 정보로 엑셀 송장에 출력됩니다.
             </p>
           </div>
 

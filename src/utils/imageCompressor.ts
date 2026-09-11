@@ -64,3 +64,43 @@ export async function optimizeImageForOcr(
     }
   });
 }
+
+/**
+ * Rotates an image Data URL by specified degrees (e.g. 90, -90, 180)
+ */
+export async function rotateImage(
+  base64DataUrl: string,
+  degrees: number,
+  quality = 0.9
+): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const rad = (degrees * Math.PI) / 180;
+      const is90or270 = Math.abs(degrees % 180) === 90;
+
+      canvas.width = is90or270 ? img.height : img.width;
+      canvas.height = is90or270 ? img.width : img.height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas context error'));
+        return;
+      }
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+      const mimeType = 'image/jpeg';
+      const base64 = canvas.toDataURL(mimeType, quality);
+      resolve({ base64, mimeType });
+    };
+    img.onerror = (err) => reject(new Error('이미지 회전 실패: ' + err));
+    img.src = base64DataUrl;
+  });
+}

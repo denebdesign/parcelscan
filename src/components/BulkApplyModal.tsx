@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Layers, CheckSquare, Sparkles } from 'lucide-react';
+import { X, Layers, CheckSquare, Sparkles, Store } from 'lucide-react';
 
 interface BulkApplyModalProps {
   isOpen: boolean;
@@ -9,11 +9,16 @@ interface BulkApplyModalProps {
     itemName?: string;
     quantity?: number;
     memo?: string;
+    senderName?: string;
+    senderPhone?: string;
     overrideItemName: boolean;
     overrideQuantity: boolean;
     overrideMemo: boolean;
+    overrideSender: boolean;
   }) => void;
   defaultItemName?: string;
+  defaultSenderName?: string;
+  defaultSenderPhone?: string;
 }
 
 export const BulkApplyModal: React.FC<BulkApplyModalProps> = ({
@@ -22,16 +27,21 @@ export const BulkApplyModal: React.FC<BulkApplyModalProps> = ({
   selectedCount,
   onApply,
   defaultItemName = '감자',
+  defaultSenderName = '',
+  defaultSenderPhone = '',
 }) => {
   if (!isOpen) return null;
 
   const [itemName, setItemName] = useState(defaultItemName);
   const [quantity, setQuantity] = useState<number>(1);
   const [memo, setMemo] = useState('문 앞 배송');
+  const [senderName, setSenderName] = useState(defaultSenderName);
+  const [senderPhone, setSenderPhone] = useState(defaultSenderPhone);
 
   const [applyItemName, setApplyItemName] = useState(true);
   const [applyQuantity, setApplyQuantity] = useState(true);
   const [applyMemo, setApplyMemo] = useState(false);
+  const [applySender, setApplySender] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +49,12 @@ export const BulkApplyModal: React.FC<BulkApplyModalProps> = ({
       itemName: applyItemName ? itemName : undefined,
       quantity: applyQuantity ? quantity : undefined,
       memo: applyMemo ? memo : undefined,
+      senderName: applySender ? senderName : undefined,
+      senderPhone: applySender ? senderPhone : undefined,
       overrideItemName: applyItemName,
       overrideQuantity: applyQuantity,
       overrideMemo: applyMemo,
+      overrideSender: applySender,
     });
     onClose();
   };
@@ -143,6 +156,64 @@ export const BulkApplyModal: React.FC<BulkApplyModalProps> = ({
                 placeholder="예: 문 앞 보관, 부재시 경비실"
                 className="w-full mt-1.5 px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-500"
               />
+            )}
+          </div>
+
+          {/* Sender (보내는 분) 일괄 변경 */}
+          <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 font-bold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applySender}
+                  onChange={(e) => setApplySender(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Store className="w-3.5 h-3.5 text-blue-600" />
+                  보내는 분(발송인) 정보 일괄 변경
+                </span>
+              </label>
+              {applySender && defaultSenderName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSenderName(defaultSenderName);
+                    setSenderPhone(defaultSenderPhone);
+                  }}
+                  className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                >
+                  기본 발송인 값 채우기
+                </button>
+              )}
+            </div>
+            {applySender && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-semibold mb-1">
+                    발송인 성함/상호
+                  </label>
+                  <input
+                    type="text"
+                    value={senderName}
+                    onChange={(e) => setSenderName(e.target.value)}
+                    placeholder={defaultSenderName || '보내는 분 성함'}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 font-semibold mb-1">
+                    발송인 연락처
+                  </label>
+                  <input
+                    type="text"
+                    value={senderPhone}
+                    onChange={(e) => setSenderPhone(e.target.value)}
+                    placeholder={defaultSenderPhone || '010-0000-0000'}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 text-xs font-mono"
+                  />
+                </div>
+              </div>
             )}
           </div>
 

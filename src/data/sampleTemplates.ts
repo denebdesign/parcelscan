@@ -94,7 +94,7 @@ export const SAMPLE_SCANNED_ITEMS: ParcelItem[] = [
     senderName: '제주바람농원 (김대표)',
     senderPhone: '010-9876-5432',
     recipientName: '이영희',
-    phone: '010-9876-5432',
+    phone: '010-2345-6789',
     address: '제주특별자치도 제주시 구좌읍 해맞이해안로 123',
     detailAddress: '101동 202호',
     zipCode: '63357',

@@ -73,9 +73,48 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
   );
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'VALID' | 'NEEDS_REVIEW' | 'ERROR'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [mobileViewMode, setMobileViewMode] = useState<'card' | 'table'>('card');
+  const [mobileViewMode, setMobileViewMode] = useState<'card' | 'table'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('preferred_scan_view_mode');
+        if (saved === 'card' || saved === 'table') {
+          return saved;
+        }
+      } catch {
+        // ignore
+      }
+      // PC 및 태블릿(768px 이상)은 '표 뷰(table)' 우선, 모바일(768px 미만)은 '카드 뷰(card)' 우선
+      return window.innerWidth >= 768 ? 'table' : 'card';
+    }
+    return 'table';
+  });
   const [deleteToast, setDeleteToast] = useState<{ message: string; backup: ParcelItem[] } | null>(null);
   const [isResolvingPostcodes, setIsResolvingPostcodes] = useState(false);
+
+  // 창 크기 변경 시 사용자 명시 설정이 없을 때 반응형 기본 뷰 모드 자동 동기화
+  useEffect(() => {
+    const handleResize = () => {
+      try {
+        const saved = localStorage.getItem('preferred_scan_view_mode');
+        if (!saved) {
+          setMobileViewMode(window.innerWidth >= 768 ? 'table' : 'card');
+        }
+      } catch {
+        setMobileViewMode(window.innerWidth >= 768 ? 'table' : 'card');
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleToggleViewMode = (mode: 'card' | 'table') => {
+    setMobileViewMode(mode);
+    try {
+      localStorage.setItem('preferred_scan_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
 
   // Sync courier when active batch or sender changes
   useEffect(() => {
@@ -502,33 +541,39 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                 <span>전체 선택 ({selectedItems.length}/{items.length})</span>
               </button>
 
-              {/* View Mode Switcher (Card vs Table) */}
+              {/* View Mode Switcher (Table vs Card): PC/태블릿 표 뷰 우선, 모바일 카드 뷰 우선 */}
               <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg">
                 <button
                   type="button"
-                  onClick={() => setMobileViewMode('card')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                    mobileViewMode === 'card'
-                      ? 'bg-white text-blue-700 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="카드형 목록 보기 (모바일 가독성 최적화)"
-                >
-                  <LayoutList className="w-3.5 h-3.5" />
-                  <span>카드 뷰</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileViewMode('table')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  onClick={() => handleToggleViewMode('table')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     mobileViewMode === 'table'
                       ? 'bg-white text-blue-700 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="표 테이블 전체 보기"
+                  title="표 테이블 전체 보기 (PC 및 태블릿 권장)"
                 >
                   <Table className="w-3.5 h-3.5" />
                   <span>표 뷰</span>
+                  <span className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold">
+                    PC·태블릿
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleViewMode('card')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    mobileViewMode === 'card'
+                      ? 'bg-white text-blue-700 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="카드형 목록 보기 (스마트폰 모바일 권장)"
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span>카드 뷰</span>
+                  <span className="inline-block sm:hidden text-[9px] px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold">
+                    모바일
+                  </span>
                 </button>
               </div>
             </div>
@@ -660,7 +705,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                               </span>
                               {item.senderName && item.senderName !== sender.name && (
                                 <span className="inline-block text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                                  발송: {item.senderName}
+                                  발송: {item.senderName}{item.senderPhone && item.senderPhone !== sender.phone ? ` (${item.senderPhone})` : ''}
                                 </span>
                               )}
                             </div>
@@ -820,7 +865,7 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                               </div>
                               {item.senderName && item.senderName !== sender.name && (
                                 <div className="text-[10px] text-blue-600 font-medium whitespace-nowrap mt-0.5">
-                                  발송: {item.senderName}
+                                  발송: {item.senderName}{item.senderPhone && item.senderPhone !== sender.phone ? ` (${item.senderPhone})` : ''}
                                 </div>
                               )}
                             </td>

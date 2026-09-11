@@ -9,6 +9,7 @@ import {
   CheckCircle2, 
   Image as ImageIcon,
   RotateCcw,
+  RotateCw,
   Info,
   Loader2,
   Smartphone,
@@ -19,7 +20,7 @@ import {
 import { generateSampleA4ImageDataUrl, downloadBlankA4TemplateImage } from '../data/sampleTemplates';
 import { MobileSyncModal } from './MobileSyncModal';
 import { AdBanner } from './AdBanner';
-import { optimizeImageForOcr } from '../utils/imageCompressor';
+import { optimizeImageForOcr, rotateImage } from '../utils/imageCompressor';
 
 interface ScanUploadViewProps {
   onScanImage: (base64Data: string, mimeType: string) => Promise<void>;
@@ -43,10 +44,24 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
   const [isMobileSyncOpen, setIsMobileSyncOpen] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleRotate = async (degrees: number) => {
+    if (!previewUrl || isRotating || isScanning) return;
+    setIsRotating(true);
+    try {
+      const rotated = await rotateImage(previewUrl, degrees);
+      setPreviewUrl(rotated.base64);
+    } catch (err) {
+      console.error('Image rotate error:', err);
+    } finally {
+      setIsRotating(false);
+    }
+  };
 
   // Drag and drop handlers
   const handleDrag = (e: React.DragEvent) => {
@@ -263,19 +278,68 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
         ) : previewUrl ? (
           /* Image Selected / Ready to Scan */
           <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 p-2 max-h-[500px] flex items-center justify-center">
+            <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900/5 p-2 max-h-[520px] flex items-center justify-center">
               <img
                 src={previewUrl}
                 alt="업로드된 택배 접수 용지"
-                className="max-h-[460px] w-auto object-contain rounded-xl shadow-xs"
+                className={`max-h-[460px] w-auto object-contain rounded-xl shadow-xs transition-opacity ${
+                  isRotating ? 'opacity-40' : 'opacity-100'
+                }`}
               />
-              <button
-                onClick={() => setPreviewUrl(null)}
-                className="absolute top-4 right-4 p-2 rounded-xl bg-slate-900/70 hover:bg-slate-900 text-white text-xs font-semibold transition-colors"
-                title="다시 선택"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
+
+              {/* Loading spinner while rotating */}
+              {isRotating && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-xs">
+                  <div className="flex items-center gap-2 bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                    <span>사진 회전 중...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Floating Rotation & Control Bar */}
+              <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
+                <div className="flex items-center gap-1.5 pointer-events-auto bg-slate-900/80 backdrop-blur-md text-white p-1 rounded-xl shadow-lg border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => handleRotate(-90)}
+                    disabled={isRotating || isScanning}
+                    className="px-2.5 py-1.5 rounded-lg hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    title="왼쪽(반시계)으로 90도 회전"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>좌회전 90°</span>
+                  </button>
+                  <div className="w-[1px] h-4 bg-white/20" />
+                  <button
+                    type="button"
+                    onClick={() => handleRotate(90)}
+                    disabled={isRotating || isScanning}
+                    className="px-2.5 py-1.5 rounded-lg hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    title="오른쪽(시계방향)으로 90도 회전"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                    <span>우회전 90°</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setPreviewUrl(null)}
+                  disabled={isRotating || isScanning}
+                  className="pointer-events-auto p-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-semibold transition-colors shadow-lg border border-white/10 cursor-pointer disabled:opacity-50"
+                  title="사진 지우고 다시 선택"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Rotation helper banner */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/80 border border-blue-200/70 text-[11px] text-blue-800">
+              <Info className="w-4 h-4 shrink-0 text-blue-600" />
+              <span>
+                <strong>방향 안내:</strong> 스마트폰으로 가로 촬영되어 용지가 옆으로 누워 있다면, 상단의 <strong>[우회전 90°]</strong> 버튼을 눌러 글씨가 똑바로 보이게 세워주세요. 주소와 칸 인식이 훨씬 완벽해집니다!
+              </span>
             </div>
 
             {/* Action Buttons */}
