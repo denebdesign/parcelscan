@@ -15,10 +15,15 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+export interface MobileReceivedImage {
+  base64: string;
+  mimeType: string;
+}
+
 interface MobileSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPhotoReceived: (imageBase64: string, mimeType: string) => void;
+  onPhotoReceived: (images: MobileReceivedImage[], autoScan: boolean) => void;
 }
 
 export const MobileSyncModal: React.FC<MobileSyncModalProps> = ({
@@ -31,6 +36,8 @@ export const MobileSyncModal: React.FC<MobileSyncModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const [isReceived, setIsReceived] = useState(false);
+  const [receivedCount, setReceivedCount] = useState(1);
+  const [willAutoScan, setWillAutoScan] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
 
   const pollIntervalRef = useRef<any>(null);
@@ -84,7 +91,7 @@ export const MobileSyncModal: React.FC<MobileSyncModalProps> = ({
     };
   }, [isOpen]);
 
-  // Polling for incoming image
+  // Polling for incoming image(s)
   useEffect(() => {
     if (!isOpen || !sessionId) return;
 
@@ -94,17 +101,33 @@ export const MobileSyncModal: React.FC<MobileSyncModalProps> = ({
         if (!res.ok) return;
 
         const data = await res.json();
-        if (data.success && data.status === 'uploaded' && data.imageBase64) {
-          // Received image!
-          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-          setIsWaiting(false);
-          setIsReceived(true);
+        if (data.success && data.status === 'uploaded') {
+          let list: MobileReceivedImage[] = [];
+          if (Array.isArray(data.images) && data.images.length > 0) {
+            list = data.images.map((img: any) => ({
+              base64: img.imageBase64,
+              mimeType: img.mimeType || 'image/jpeg',
+            }));
+          } else if (data.imageBase64) {
+            list = [{
+              base64: data.imageBase64,
+              mimeType: data.mimeType || 'image/jpeg',
+            }];
+          }
 
-          // Trigger callback and close modal after brief visual feedback
-          setTimeout(() => {
-            onPhotoReceived(data.imageBase64, data.mimeType || 'image/jpeg');
-            onClose();
-          }, 1000);
+          if (list.length > 0) {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            setIsWaiting(false);
+            setIsReceived(true);
+            setReceivedCount(list.length);
+            setWillAutoScan(!!data.autoScan);
+
+            // Trigger callback and close modal after brief visual feedback
+            setTimeout(() => {
+              onPhotoReceived(list, !!data.autoScan);
+              onClose();
+            }, 800);
+          }
         }
       } catch (e) {
         console.error('Polling error:', e);
@@ -167,11 +190,22 @@ export const MobileSyncModal: React.FC<MobileSyncModalProps> = ({
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h4 className="text-lg font-bold text-slate-900">
-                스마트폰에서 사진이 전송되었습니다!
+                {receivedCount > 1
+                  ? `총 ${receivedCount}장의 사진이 도착했습니다!`
+                  : '스마트폰에서 사진이 전송되었습니다!'}
               </h4>
               <p className="text-xs text-slate-500 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-                <span>AI 주소 인식을 자동으로 시작합니다...</span>
+                {willAutoScan ? (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                    <span>AI 주소 인식을 자동으로 시작합니다...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>화면에 로드되었습니다. 확인 및 회전 후 시작하세요.</span>
+                  </>
+                )}
               </p>
             </div>
           ) : (

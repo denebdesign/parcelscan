@@ -10,20 +10,31 @@ import {
   Image as ImageIcon,
   RotateCcw,
   RotateCw,
+  ArrowUpDown,
+  ArrowLeftRight,
   Info,
   Loader2,
   Smartphone,
   QrCode,
   Download,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { generateSampleA4ImageDataUrl, downloadBlankA4TemplateImage } from '../data/sampleTemplates';
-import { MobileSyncModal } from './MobileSyncModal';
+import { MobileSyncModal, MobileReceivedImage } from './MobileSyncModal';
 import { AdBanner } from './AdBanner';
-import { optimizeImageForOcr, rotateImage } from '../utils/imageCompressor';
+import { optimizeImageForOcr, rotateImage, flipImage, autoDetectAndStraightenImage } from '../utils/imageCompressor';
+
+interface UploadedPhoto {
+  id: string;
+  base64: string;
+  mimeType: string;
+}
 
 interface ScanUploadViewProps {
   onScanImage: (base64Data: string, mimeType: string) => Promise<void>;
+  onScanImages?: (images: Array<{ base64: string; mimeType: string }>) => Promise<void>;
   onLoadSample: () => void;
   isScanning: boolean;
   scanStepText: string;
@@ -33,6 +44,7 @@ interface ScanUploadViewProps {
 
 export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
   onScanImage,
+  onScanImages,
   onLoadSample,
   isScanning,
   scanStepText,
@@ -40,26 +52,97 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
   onClearError,
 }) => {
   const [dragActive, setDragActive] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
+  const [isStraightening, setIsStraightening] = useState(false);
+  const [straightenStatus, setStraightenStatus] = useState<string | null>(null);
   const [isMobileSyncOpen, setIsMobileSyncOpen] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const appendFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const activePhoto = photos[activePhotoIndex] || null;
+
+  // Rotation handler
   const handleRotate = async (degrees: number) => {
-    if (!previewUrl || isRotating || isScanning) return;
+    if (!activePhoto || isRotating || isStraightening || isScanning) return;
     setIsRotating(true);
+    setStraightenStatus(null);
     try {
-      const rotated = await rotateImage(previewUrl, degrees);
-      setPreviewUrl(rotated.base64);
+      const rotated = await rotateImage(activePhoto.base64, degrees);
+      setPhotos((prev) =>
+        prev.map((p, idx) =>
+          idx === activePhotoIndex
+            ? { ...p, base64: rotated.base64, mimeType: rotated.mimeType }
+            : p
+        )
+      );
     } catch (err) {
       console.error('Image rotate error:', err);
     } finally {
       setIsRotating(false);
+    }
+  };
+
+  // Flip handler (horizontal or vertical)
+  const handleFlip = async (direction: 'horizontal' | 'vertical') => {
+    if (!activePhoto || isRotating || isStraightening || isScanning) return;
+    setIsRotating(true);
+    setStraightenStatus(null);
+    try {
+      const flipped = await flipImage(activePhoto.base64, direction);
+      setPhotos((prev) =>
+        prev.map((p, idx) =>
+          idx === activePhotoIndex
+            ? { ...p, base64: flipped.base64, mimeType: flipped.mimeType }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error('Image flip error:', err);
+    } finally {
+      setIsRotating(false);
+    }
+  };
+
+  // AI Auto-Straighten
+  const handleAutoStraighten = async () => {
+    if (!activePhoto || isRotating || isStraightening || isScanning) return;
+    setIsStraightening(true);
+    setStraightenStatus('AI가 사진 내 텍스트 방향을 분석하고 있습니다...');
+    try {
+      const result = await autoDetectAndStraightenImage(activePhoto.base64, activePhoto.mimeType);
+      if (result.rotationApplied > 0) {
+        setPhotos((prev) =>
+          prev.map((p, idx) =>
+            idx === activePhotoIndex
+              ? { ...p, base64: result.base64, mimeType: result.mimeType }
+              : p
+          )
+        );
+        setStraightenStatus(`✨ ${result.description || `${result.rotationApplied}° 회전하여 바로잡았습니다.`}`);
+      } else {
+        setStraightenStatus('✨ 이미 글씨가 정상 정방향으로 바르게 서 있습니다.');
+      }
+      setTimeout(() => setStraightenStatus(null), 3500);
+    } catch (err: any) {
+      console.error('Auto straighten error:', err);
+      setStraightenStatus('방향 감지 중 지연이 발생했습니다. 상단 회전 버튼으로 직접 맞춰주세요.');
+    } finally {
+      setIsStraightening(false);
+    }
+  };
+
+  // Delete a specific photo
+  const handleDeletePhoto = (indexToDelete: number) => {
+    const updated = photos.filter((_, idx) => idx !== indexToDelete);
+    setPhotos(updated);
+    if (activePhotoIndex >= updated.length) {
+      setActivePhotoIndex(Math.max(0, updated.length - 1));
     }
   };
 
@@ -78,47 +161,73 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(Array.from(e.target.files));
     }
+    // reset input so same file can be re-selected if needed
+    e.target.value = '';
   };
 
-  const processFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+  const processFiles = async (fileList: File[]) => {
+    const imageFiles = fileList.filter((f) => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
       alert('이미지 파일(JPG, PNG, WebP 등)만 업로드 가능합니다.');
       return;
     }
     if (onClearError) onClearError();
-    setSelectedFile(file);
     setIsCompressing(true);
 
     try {
-      const optimized = await optimizeImageForOcr(file, 2048, 2048, 0.85);
-      setPreviewUrl(optimized.base64);
-    } catch (err) {
-      console.error('Image compression error:', err);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const optimizedList: UploadedPhoto[] = [];
+      for (const file of imageFiles) {
+        try {
+          const optimized = await optimizeImageForOcr(file, 2048, 2048, 0.85);
+          optimizedList.push({
+            id: `upload-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            base64: optimized.base64,
+            mimeType: optimized.mimeType,
+          });
+        } catch (err) {
+          console.error('File optimization error:', err);
+        }
+      }
+
+      if (optimizedList.length > 0) {
+        setPhotos((prev) => [...prev, ...optimizedList]);
+      }
     } finally {
       setIsCompressing(false);
     }
   };
 
-  // Mobile Sync Photo Received
-  const handleMobilePhotoReceived = async (imageBase64: string, mimeType: string) => {
+  // Mobile Sync Photo Received (can receive multiple photos)
+  const handleMobilePhotosReceived = async (receivedImages: MobileReceivedImage[], autoScan: boolean) => {
     if (onClearError) onClearError();
-    setPreviewUrl(imageBase64);
-    // Automatically trigger AI extraction for smooth instant workflow
-    await onScanImage(imageBase64, mimeType);
+
+    const newPhotos: UploadedPhoto[] = receivedImages.map((img, idx) => ({
+      id: `mobile-${Date.now()}-${idx}`,
+      base64: img.base64,
+      mimeType: img.mimeType || 'image/jpeg',
+    }));
+
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    setActivePhotoIndex((prev) => (photos.length === 0 ? 0 : prev));
+
+    if (autoScan) {
+      // Trigger AI scan immediately if user explicitly enabled it on mobile
+      const allToScan = [...photos, ...newPhotos].map((p) => ({ base64: p.base64, mimeType: p.mimeType }));
+      if (onScanImages) {
+        await onScanImages(allToScan);
+      } else {
+        await onScanImage(allToScan[0].base64, allToScan[0].mimeType);
+      }
+    }
   };
 
   // Start Camera handler
@@ -162,9 +271,23 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
       setIsCompressing(true);
       try {
         const optimized = await optimizeImageForOcr(rawDataUrl, 2048, 2048, 0.85);
-        setPreviewUrl(optimized.base64);
+        setPhotos((prev) => [
+          ...prev,
+          {
+            id: `webcam-${Date.now()}`,
+            base64: optimized.base64,
+            mimeType: optimized.mimeType,
+          },
+        ]);
       } catch {
-        setPreviewUrl(rawDataUrl);
+        setPhotos((prev) => [
+          ...prev,
+          {
+            id: `webcam-${Date.now()}`,
+            base64: rawDataUrl,
+            mimeType: 'image/jpeg',
+          },
+        ]);
       } finally {
         setIsCompressing(false);
       }
@@ -172,16 +295,32 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
   };
 
   const handleStartAnalysis = async () => {
-    if (!previewUrl) return;
+    if (photos.length === 0) return;
     if (onClearError) onClearError();
-    const mimeType = previewUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-    await onScanImage(previewUrl, mimeType);
+
+    const payload = photos.map((p) => ({
+      base64: p.base64,
+      mimeType: p.mimeType,
+    }));
+
+    if (onScanImages) {
+      await onScanImages(payload);
+    } else {
+      await onScanImage(payload[0].base64, payload[0].mimeType);
+    }
   };
 
   const handleLoadSampleA4 = () => {
     if (onClearError) onClearError();
     const sampleDataUrl = generateSampleA4ImageDataUrl();
-    setPreviewUrl(sampleDataUrl);
+    setPhotos([
+      {
+        id: `sample-${Date.now()}`,
+        base64: sampleDataUrl,
+        mimeType: 'image/jpeg',
+      },
+    ]);
+    setActivePhotoIndex(0);
   };
 
   return (
@@ -190,7 +329,17 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
       <MobileSyncModal
         isOpen={isMobileSyncOpen}
         onClose={() => setIsMobileSyncOpen(false)}
-        onPhotoReceived={handleMobilePhotoReceived}
+        onPhotoReceived={handleMobilePhotosReceived}
+      />
+
+      {/* Hidden file input for adding more photos */}
+      <input
+        ref={appendFileInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
       />
 
       {/* Title Header */}
@@ -203,7 +352,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
           종이 접수 용지 사진 촬영 또는 업로드
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-          스마트폰 카메라로 찍어 PC로 즉시 전송하거나, 사진 파일을 선택해주세요. AI가 칸별로 분할하여 전산화합니다.
+          스마트폰 카메라로 찍어 PC로 전송하거나, 사진을 직접 선택하세요. 여러 장을 한 번에 등록하여 전산화할 수 있습니다.
         </p>
       </div>
 
@@ -234,7 +383,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
       )}
 
       {/* Main Upload Box */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-5">
         {isCompressing ? (
           <div className="py-16 text-center space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
@@ -275,88 +424,206 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
               </button>
             </div>
           </div>
-        ) : previewUrl ? (
-          /* Image Selected / Ready to Scan */
+        ) : photos.length > 0 && activePhoto ? (
+          /* Images Selected / Ready to Scan */
           <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900/5 p-2 max-h-[520px] flex items-center justify-center">
-              <img
-                src={previewUrl}
-                alt="업로드된 택배 접수 용지"
-                className={`max-h-[460px] w-auto object-contain rounded-xl shadow-xs transition-opacity ${
-                  isRotating ? 'opacity-40' : 'opacity-100'
-                }`}
-              />
-
-              {/* Loading spinner while rotating */}
-              {isRotating && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-xs">
-                  <div className="flex items-center gap-2 bg-slate-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span>사진 회전 중...</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Floating Rotation & Control Bar */}
-              <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
-                <div className="flex items-center gap-1.5 pointer-events-auto bg-slate-900/80 backdrop-blur-md text-white p-1 rounded-xl shadow-lg border border-white/10">
+            {/* Top Multi-Sheet Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
+                <span className="text-xs font-bold text-slate-700 whitespace-nowrap pl-1">
+                  접수 용지 ({photos.length}장):
+                </span>
+                {photos.map((p, idx) => (
                   <button
+                    key={p.id}
                     type="button"
-                    onClick={() => handleRotate(-90)}
-                    disabled={isRotating || isScanning}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                    title="왼쪽(반시계)으로 90도 회전"
+                    onClick={() => setActivePhotoIndex(idx)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                      idx === activePhotoIndex
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>좌회전 90°</span>
+                    <span>{idx + 1}번 용지</span>
+                    {photos.length > 1 && (
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePhoto(idx);
+                        }}
+                        className="hover:text-red-300 transition-colors"
+                        title="이 용지 삭제"
+                      >
+                        ×
+                      </span>
+                    )}
                   </button>
-                  <div className="w-[1px] h-4 bg-white/20" />
-                  <button
-                    type="button"
-                    onClick={() => handleRotate(90)}
-                    disabled={isRotating || isScanning}
-                    className="px-2.5 py-1.5 rounded-lg hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                    title="오른쪽(시계방향)으로 90도 회전"
-                  >
-                    <RotateCw className="w-3.5 h-3.5" />
-                    <span>우회전 90°</span>
-                  </button>
-                </div>
+                ))}
+              </div>
 
+              {/* Add more photos button */}
+              <div className="flex items-center gap-1.5 ml-auto">
                 <button
-                  onClick={() => setPreviewUrl(null)}
-                  disabled={isRotating || isScanning}
-                  className="pointer-events-auto p-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-semibold transition-colors shadow-lg border border-white/10 cursor-pointer disabled:opacity-50"
-                  title="사진 지우고 다시 선택"
+                  type="button"
+                  onClick={() => appendFileInputRef.current?.click()}
+                  disabled={isScanning}
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ 용지 추가</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSyncOpen(true)}
+                  disabled={isScanning}
+                  className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>스마트폰 촬영 추가</span>
                 </button>
               </div>
             </div>
 
+            {/* Photo View Box */}
+            <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950/5 p-2 max-h-[520px] flex items-center justify-center">
+              <img
+                src={activePhoto.base64}
+                alt="업로드된 택배 접수 용지"
+                className={`max-h-[460px] w-auto object-contain rounded-xl shadow-xs transition-opacity ${
+                  isRotating || isStraightening ? 'opacity-30' : 'opacity-100'
+                }`}
+              />
+
+              {/* Loading spinner while rotating / straightening */}
+              {(isRotating || isStraightening) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-xs">
+                  <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xl">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                    <span>{isStraightening ? 'AI 텍스트 방향 분석 및 보정 중...' : '사진 회전 중...'}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Active Photo button */}
+              <button
+                onClick={() => handleDeletePhoto(activePhotoIndex)}
+                disabled={isRotating || isStraightening || isScanning}
+                className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 hover:bg-red-700 text-white text-xs font-semibold transition-colors shadow-lg border border-white/10 cursor-pointer disabled:opacity-50"
+                title="현재 사진 삭제"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* High-Contrast, Touch-Friendly Orientation Toolbar for both PC & Mobile */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <div className="flex items-center gap-1.5">
+                  <RotateCw className="w-4 h-4 text-blue-600" />
+                  <span>사진 방향 맞추기 ({activePhotoIndex + 1}번 용지)</span>
+                </div>
+                <span className="text-[11px] font-normal text-slate-500">
+                  글씨가 바르게 서 있어야 인식률이 100% 극대화됩니다
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <button
+                  type="button"
+                  id="btn-rotate-left"
+                  onClick={() => handleRotate(-90)}
+                  disabled={isRotating || isStraightening || isScanning}
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="왼쪽(반시계)으로 90도 회전"
+                >
+                  <RotateCcw className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="whitespace-nowrap">좌회전 90°</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-rotate-right"
+                  onClick={() => handleRotate(90)}
+                  disabled={isRotating || isStraightening || isScanning}
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="오른쪽(시계방향)으로 90도 회전"
+                >
+                  <RotateCw className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="whitespace-nowrap">우회전 90°</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-flip-vertical"
+                  onClick={() => handleFlip('vertical')}
+                  disabled={isRotating || isStraightening || isScanning}
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="상하 뒤집힘 반전"
+                >
+                  <ArrowUpDown className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="whitespace-nowrap">상하 반전</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-flip-horizontal"
+                  onClick={() => handleFlip('horizontal')}
+                  disabled={isRotating || isStraightening || isScanning}
+                  className="min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="좌우 거울 반전"
+                >
+                  <ArrowLeftRight className="w-4 h-4 text-slate-600 shrink-0" />
+                  <span className="whitespace-nowrap">좌우 반전</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-auto-straighten"
+                  onClick={handleAutoStraighten}
+                  disabled={isRotating || isStraightening || isScanning}
+                  className="col-span-2 sm:col-span-1 min-h-[44px] px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-98 text-white text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-600/20 cursor-pointer disabled:opacity-50"
+                  title="AI가 글씨를 인식하여 스스로 똑바로 세웁니다"
+                >
+                  <Sparkles className="w-4 h-4 text-yellow-300 shrink-0" />
+                  <span className="whitespace-nowrap">AI 자동맞춤</span>
+                </button>
+              </div>
+
+              {/* Straighten Status Feedback */}
+              {straightenStatus && (
+                <div className="p-2 rounded-xl bg-blue-100/80 border border-blue-200 text-blue-900 text-xs text-center font-semibold animate-in fade-in">
+                  {straightenStatus}
+                </div>
+              )}
+            </div>
+
             {/* Rotation helper banner */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/80 border border-blue-200/70 text-[11px] text-blue-800">
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-50 border border-blue-200/80 text-xs text-blue-900">
               <Info className="w-4 h-4 shrink-0 text-blue-600" />
               <span>
-                <strong>방향 안내:</strong> 스마트폰으로 가로 촬영되어 용지가 옆으로 누워 있다면, 상단의 <strong>[우회전 90°]</strong> 버튼을 눌러 글씨가 똑바로 보이게 세워주세요. 주소와 칸 인식이 훨씬 완벽해집니다!
+                <strong>방향 안내:</strong> 가로 촬영되어 용지가 누워 있다면 <strong>[우회전 90°]</strong> 또는 <strong>[AI 자동맞춤]</strong>을 눌러주세요. 또한 <strong>[+ 용지 추가]</strong>를 누르면 2번째, 3번째 용지도 한 번에 모아서 전산화할 수 있습니다.
               </span>
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <button
-                onClick={() => setPreviewUrl(null)}
+                onClick={() => {
+                  setPhotos([]);
+                  setActivePhotoIndex(0);
+                }}
                 disabled={isScanning}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors cursor-pointer"
               >
-                다른 사진 선택
+                전체 초기화
               </button>
 
               <button
                 id="btn-execute-ai-scan"
                 onClick={handleStartAnalysis}
-                disabled={isScanning}
-                className="w-full sm:w-auto px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all"
+                disabled={isScanning || photos.length === 0}
+                className="w-full sm:w-auto px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
               >
                 {isScanning ? (
                   <>
@@ -366,7 +633,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-yellow-300" />
-                    <span>AI 자동 인식 및 전산화 시작</span>
+                    <span>AI 자동 인식 및 전산화 시작 (총 {photos.length}장)</span>
                   </>
                 )}
               </button>
@@ -399,6 +666,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept="image/*"
               className="hidden"
               onChange={handleFileChange}
@@ -419,7 +687,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
                   스마트폰 카메라로 찍어 PC로 즉시 전송
                 </h4>
                 <p className="text-xs text-blue-100 mt-0.5 leading-relaxed">
-                  스마트폰으로 QR코드를 찍고 사진을 찍으면 PC 화면에 실시간으로 자동 업로드됩니다.
+                  스마트폰으로 QR코드를 찍고 사진을 찍으면 PC 화면에 실시간으로 자동 업로드됩니다. 여러 장 촬영 및 회전 조작도 가능합니다.
                 </p>
               </div>
 
@@ -436,7 +704,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
 
             <div className="relative flex py-2 items-center max-w-md mx-auto">
               <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-4 text-slate-400 text-xs font-semibold">또는 파일/웹캠 직접 선택</span>
+              <span className="flex-shrink mx-4 text-slate-400 text-xs font-semibold">또는 파일/웹캠 직접 선택 (여러 장 가능)</span>
               <div className="flex-grow border-t border-slate-200"></div>
             </div>
 
@@ -449,7 +717,7 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
                 className="w-full h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-xs active:scale-98 transition-all cursor-pointer"
               >
                 <ImageIcon className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">사진 파일 선택</span>
+                <span className="whitespace-nowrap">사진 파일 선택 (여러 장 가능)</span>
               </button>
 
               <button
@@ -539,12 +807,12 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
               disabled={isDownloadingTemplate}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition-colors cursor-pointer"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               <span>양식 다운로드</span>
             </button>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            농가, 과수원, 취급점, 매장에서 고객 수기 접수 시 아래 표준 양식을 작성해 촬영하면 AI가 99% 이상 높은 정확도로 자동 인식합니다.
+            농가, 과수원, 취급점, 매장에서 고객 수기 접수 시 아래 표준 양식을 작성해 촬영하면 AI가 99% 이상 높은 정확도로 자동 인식합니다. 달력 뒷면, 박스 조각, 구겨진 메모지도 자유롭게 인식 가능합니다.
           </p>
           <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-1 font-mono">
             <div>① 보내는분 / 받는분 성함 및 연락처 (010-XXXX-XXXX)</div>
@@ -562,11 +830,11 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
           <ul className="text-xs text-slate-600 space-y-2">
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-              <span><strong>전화번호 하이픈 자동 포맷:</strong> 01012345678 → 010-1234-5678</span>
+              <span><strong>사진 방향 자동 감지 및 보정:</strong> 90도 누운 사진, 거꾸로 뒤집힌 사진 자동 교정</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-              <span><strong>기본주소/상세주소 자동 분리:</strong> 도로명과 동·호수 자동 정제</span>
+              <span><strong>여러 장 일괄 전산화:</strong> 1번 용지, 2번 용지를 연속 촬영하여 한 번에 엑셀화</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
@@ -578,4 +846,5 @@ export const ScanUploadView: React.FC<ScanUploadViewProps> = ({
     </div>
   );
 };
+
 

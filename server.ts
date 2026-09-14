@@ -85,12 +85,19 @@ app.get("/ads.txt", (req, res) => {
 });
 
 // --- Real-time Mobile Camera Sync Sessions ---
+interface MobileSyncImage {
+  imageBase64: string;
+  mimeType: string;
+}
+
 interface MobileSyncSession {
   sessionId: string;
   createdAt: number;
   status: "waiting" | "uploaded";
   imageBase64?: string;
   mimeType?: string;
+  images?: MobileSyncImage[];
+  autoScan?: boolean;
 }
 
 const mobileSyncSessions = new Map<string, MobileSyncSession>();
@@ -112,13 +119,14 @@ app.post("/api/mobile-sync/create", (req, res) => {
     sessionId,
     createdAt: Date.now(),
     status: "waiting",
+    images: [],
   });
   res.json({ success: true, sessionId });
 });
 
-// 2. Upload photo from mobile phone
+// 2. Upload photo from mobile phone (supports single or multiple photos)
 app.post("/api/mobile-sync/upload", (req, res) => {
-  const { sessionId, imageBase64, mimeType = "image/jpeg" } = req.body;
+  const { sessionId, imageBase64, mimeType = "image/jpeg", images, autoScan = false } = req.body;
   if (!sessionId) {
     return res.status(400).json({ error: "세션 ID가 필요합니다." });
   }
@@ -127,15 +135,22 @@ app.post("/api/mobile-sync/upload", (req, res) => {
     return res.status(404).json({ error: "유효하지 않거나 만료된 세션입니다. PC 화면에서 QR코드를 새로고침해주세요." });
   }
 
-  if (!imageBase64) {
+  let finalImages: MobileSyncImage[] = [];
+  if (Array.isArray(images) && images.length > 0) {
+    finalImages = images;
+  } else if (imageBase64) {
+    finalImages = [{ imageBase64, mimeType }];
+  } else {
     return res.status(400).json({ error: "사진 데이터가 누락되었습니다." });
   }
 
   session.status = "uploaded";
-  session.imageBase64 = imageBase64;
-  session.mimeType = mimeType;
+  session.images = finalImages;
+  session.imageBase64 = finalImages[0]?.imageBase64;
+  session.mimeType = finalImages[0]?.mimeType || "image/jpeg";
+  session.autoScan = !!autoScan;
 
-  res.json({ success: true, message: "PC로 사진이 성공적으로 전송되었습니다." });
+  res.json({ success: true, message: `PC로 ${finalImages.length}장의 사진이 성공적으로 전송되었습니다.` });
 });
 
 // 3. Check session status (polled by PC)
@@ -147,14 +162,15 @@ app.get("/api/mobile-sync/status/:sessionId", (req, res) => {
     return res.status(404).json({ error: "세션을 찾을 수 없습니다." });
   }
 
-  if (session.status === "uploaded" && session.imageBase64) {
+  if (session.status === "uploaded" && (session.images?.length || session.imageBase64)) {
     const data = {
       success: true,
       status: "uploaded",
+      images: session.images && session.images.length > 0 ? session.images : [{ imageBase64: session.imageBase64!, mimeType: session.mimeType || "image/jpeg" }],
       imageBase64: session.imageBase64,
       mimeType: session.mimeType || "image/jpeg",
+      autoScan: session.autoScan || false,
     };
-    // Keep it for a short time or delete after consumption
     return res.json(data);
   }
 
@@ -167,6 +183,86 @@ app.delete("/api/mobile-sync/:sessionId", (req, res) => {
   mobileSyncSessions.delete(sessionId);
   res.json({ success: true });
 });
+
+// 5. AI Image Auto-Orientation Endpoint (Detect orientation: 0, 90, 180, 270)
+app.post("/api/auto-orient", async (req, res) => {
+  try {
+    const { imageBase64, mimeType = "image/jpeg" } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: "이미지 데이터(imageBase64)가 필요합니다." });
+    }
+
+    const base64Data = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, "");
+    const aiClients = getAIClients();
+
+    const systemPrompt = `
+당신은 택배 송장 및 손글씨 접수 용지 사진의 회전 각도 및 텍스트 방향을 감지하는 전문 AI 판별기입니다.
+이미지 내의 한글 텍스트('택배 접수 용지', '보내는분', '받는분', 도로명주소 등)와 인쇄 양식의 테두리 방향을 시각적으로 정밀하게 분석하세요.
+사람이 이 문서를 정상적으로 읽기 위해(텍스트가 위에서 아래로, 가로쓰기가 왼쪽에서 오른쪽으로 읽히도록), 이미지를 [시계 방향(Clockwise)]으로 몇 도 회전시켜야 똑바로 세워지는지 판단하세요.
+
+각도 옵션 (정수):
+- 0: 이미 정상 정방향으로 바르게 서 있음 (회전 불필요)
+- 90: 현재 사진이 시계방향 90도 회전되어야 똑바로 됨 (왼쪽으로 90도 누워있거나, 가로 방향 촬영됨)
+- 180: 현재 사진이 상하 거꾸로 뒤집혀 있어 180도 회전되어야 함
+- 270: 현재 사진이 시계방향 270도(반시계 90도) 회전되어야 똑바로 됨 (오른쪽으로 누워있음)
+
+JSON 객체 형식으로만 응답하세요.
+`;
+
+    const reqContents = {
+      parts: [
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data,
+          },
+        },
+        {
+          text: "이 용지 사진의 글씨가 똑바로 읽히도록 시계방향으로 회전해야 하는 각도(0, 90, 180, 270)를 JSON으로 판별하세요.",
+        },
+      ],
+    };
+
+    const responseSchema = {
+      type: Type.OBJECT,
+      properties: {
+        rotationDegrees: {
+          type: Type.INTEGER,
+          description: "시계 방향으로 회전해야 하는 각도: 0, 90, 180, 270",
+        },
+        description: {
+          type: Type.STRING,
+          description: "판단 사유 요약 (예: 90도 시계방향 회전 필요, 180도 뒤집힘 보정 등)",
+        },
+      },
+      required: ["rotationDegrees"],
+    };
+
+    const response = await generateContentWithRetry(aiClients, reqContents, systemPrompt, responseSchema);
+    const rawText = response.text || "{}";
+    let parsed: any = { rotationDegrees: 0, description: "정방향 확인" };
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      // default 0
+    }
+
+    const degrees = [0, 90, 180, 270].includes(parsed.rotationDegrees) ? parsed.rotationDegrees : 0;
+    res.json({
+      success: true,
+      rotationDegrees: degrees,
+      description: parsed.description || (degrees === 0 ? "정방향 확인됨" : `${degrees}° 회전 필요`),
+    });
+  } catch (err: any) {
+    console.error("Auto orient error:", err);
+    res.status(500).json({
+      success: false,
+      rotationDegrees: 0,
+      error: err?.message || "방향 감지 실패",
+    });
+  }
+});
+
 
 
 // Helper to execute generateContent with automatic retry, multi-key failover, and model fallback
@@ -385,6 +481,11 @@ app.post("/api/scan-address", async (req, res) => {
 당신은 대한민국 택배 및 농수산물 직배송 현장 전문 초정밀 손글씨/인쇄 OCR AI 인식기입니다.
 실제 현장에서는 A4 전용 접수 용지뿐만 아니라, 고객이 직접 손으로 써온 [달력 뒷면, 박스 조각, 구겨진 메모지, 줄노트, 영수증 뒷면, 이면지] 등 매우 다양한 형태의 손글씨가 들어옵니다.
 이미지의 서식 유형(전용 양식 vs 자유 메모)을 스스로 감지하여, 각 배송 목적지(받는 분 1인당 1개 레코드)별로 정확한 JSON 배열을 추출하세요.
+
+[★ 제1원칙: 이미지 회전/기울기 자동 감지 및 가상 정방향 보정 판독 ★]
+- 스마트폰 카메라 촬영 특성상 사진이 90도 회전(옆으로 누움), 180도(상하 반전/거꾸로), 또는 270도(시계반대방향 90도) 회전된 상태로 입력될 수 있습니다.
+- 이미지 내 '택배 접수 용지' 표제 또는 인쇄/손글씨 텍스트('보내는분', '받는분', 도로명 등)의 글자 방향을 시각적으로 가장 먼저 감지하세요.
+- 사진이 어떤 각도로 누워 있더라도, 스스로 정방향(0도, 글씨를 위에서 아래로 읽는 상태)으로 보정한 가상 좌표계를 기준으로 상하좌우 각 칸(1번: 좌상, 2번: 좌하, 3번: 우상, 4번: 우하)과 글씨를 정확하게 판독하세요.
 
 [★ 서식 유형별 지능형 적응 판독 규칙 ★]
 

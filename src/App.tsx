@@ -198,95 +198,102 @@ export default function App() {
     errorCount: allBatchItems.filter((i) => i.status === 'ERROR').length,
   };
 
-  // Perform AI Scanning via Server Endpoint
-  const handleScanImage = async (base64Data: string, mimeType: string) => {
+  // Perform AI Scanning via Server Endpoint (supports 1 or multiple images)
+  const handleScanImages = async (images: Array<{ base64: string; mimeType: string }>) => {
+    if (!images || images.length === 0) return;
     setIsScanning(true);
-    setScanStepText('1/3 이미지 영역 및 문자 분할 중...');
 
     try {
-      setTimeout(() => {
-        setScanStepText('2/3 AI 필기체 인식 및 도로명 주소 정제 중...');
-      }, 1200);
+      const allScannedResults: ParcelItem[] = [];
+      const totalImages = images.length;
 
-      setTimeout(() => {
-        setScanStepText('3/3 전화번호 포맷팅 및 주소 검증 중...');
-      }, 2400);
-
-      const response = await fetch('/api/scan-address', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: base64Data,
-          mimeType: mimeType,
-        }),
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'AI 주소 인식 실패');
-      }
-
-      const scannedResults: ParcelItem[] = resData.data.map((raw: any, idx: number) => {
-        const matchedCust = customers.find(
-          (c) =>
-            c.name === raw.recipientName ||
-            (raw.phone && c.phone.replace(/[^0-9]/g, '') === raw.phone.replace(/[^0-9]/g, ''))
+      for (let i = 0; i < totalImages; i++) {
+        const { base64, mimeType } = images[i];
+        setScanStepText(
+          totalImages > 1
+            ? `[${i + 1}/${totalImages}장 분석 중] AI 필기체 주소 인식 진행 중...`
+            : '1/3 AI 필기체 인식 및 도로명 주소 정제 중...'
         );
 
-        let finalStatus: 'VALID' | 'NEEDS_REVIEW' | 'ERROR' = raw.status || 'VALID';
-        let notes = raw.validationNotes || '';
+        const response = await fetch('/api/scan-address', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: base64,
+            mimeType: mimeType,
+          }),
+        });
 
-        if (matchedCust) {
-          notes = `기존 고객(${matchedCust.name}) 주소 정보와 일치`;
-        } else if (finalStatus === 'VALID') {
-          notes = '주소 및 연락처 정상 확인됨';
+        const resData = await response.json();
+        if (!response.ok || !resData.success) {
+          throw new Error(resData.error || `${i + 1}번째 이미지 주소 인식 실패`);
         }
 
-        let cleanItemName = (raw.itemName || sender.defaultItem || '과일/농산물').trim();
-        cleanItemName = cleanItemName.replace(/\s*[\(\[\{]\s*\d+\s*(박스|box|상자|포|EA|개|개입)\s*[\)\]\}]/gi, '');
-        cleanItemName = cleanItemName.replace(/\s+\d+\s*(박스|box|상자)\s*$/gi, '').trim();
+        const pageStartIndex = allScannedResults.length;
+        const pageItems: ParcelItem[] = resData.data.map((raw: any, idx: number) => {
+          const globalIdx = pageStartIndex + idx;
+          const matchedCust = customers.find(
+            (c) =>
+              c.name === raw.recipientName ||
+              (raw.phone && c.phone.replace(/[^0-9]/g, '') === raw.phone.replace(/[^0-9]/g, ''))
+          );
 
-        // Preserve handwritten sender if recognized, otherwise fall back to sender profile setting
-        const recognizedSenderName = (raw.senderName || '').trim();
-        const recognizedSenderPhone = (raw.senderPhone || '').trim();
+          let finalStatus: 'VALID' | 'NEEDS_REVIEW' | 'ERROR' = raw.status || 'VALID';
+          let notes = raw.validationNotes || '';
 
-        return {
-          id: `scan-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
-          cellNumber: raw.cellNumber || idx + 1,
-          senderName: recognizedSenderName || sender.name || '',
-          senderPhone: recognizedSenderPhone || sender.phone || '',
-          recipientName: raw.recipientName || '',
-          phone: raw.phone || '',
-          address: raw.address || '',
-          detailAddress: raw.detailAddress || '',
-          zipCode: raw.zipCode || '63047',
-          itemName: cleanItemName || sender.defaultItem || '과일/농산물',
-          quantity: typeof raw.quantity === 'number' && raw.quantity > 0 ? raw.quantity : 1,
-          memo: raw.memo || '문 앞 보관',
-          status: finalStatus,
-          validationNotes: notes,
-          selected: false,
-        };
-      });
+          if (matchedCust) {
+            notes = `기존 고객(${matchedCust.name}) 주소 정보와 일치`;
+          } else if (finalStatus === 'VALID') {
+            notes = '주소 및 연락처 정상 확인됨';
+          }
+
+          let cleanItemName = (raw.itemName || sender.defaultItem || '과일/농산물').trim();
+          cleanItemName = cleanItemName.replace(/\s*[\(\[\{]\s*\d+\s*(박스|box|상자|포|EA|개|개입)\s*[\)\]\}]/gi, '');
+          cleanItemName = cleanItemName.replace(/\s+\d+\s*(박스|box|상자)\s*$/gi, '').trim();
+
+          const recognizedSenderName = (raw.senderName || '').trim();
+          const recognizedSenderPhone = (raw.senderPhone || '').trim();
+
+          return {
+            id: `scan-${Date.now()}-${globalIdx}-${Math.random().toString(36).slice(2, 6)}`,
+            cellNumber: raw.cellNumber ? pageStartIndex + raw.cellNumber : globalIdx + 1,
+            senderName: recognizedSenderName || sender.name || '',
+            senderPhone: recognizedSenderPhone || sender.phone || '',
+            recipientName: raw.recipientName || '',
+            phone: raw.phone || '',
+            address: raw.address || '',
+            detailAddress: raw.detailAddress || '',
+            zipCode: raw.zipCode || '63047',
+            itemName: cleanItemName || sender.defaultItem || '과일/농산물',
+            quantity: typeof raw.quantity === 'number' && raw.quantity > 0 ? raw.quantity : 1,
+            memo: raw.memo || '문 앞 보관',
+            status: finalStatus,
+            validationNotes: notes,
+            selected: false,
+          };
+        });
+
+        allScannedResults.push(...pageItems);
+      }
 
       // Save as new active items
-      setCurrentItems(scannedResults);
-      setCurrentImageUrl(base64Data);
+      setCurrentItems(allScannedResults);
+      setCurrentImageUrl(images[0].base64);
 
       // Create new batch record
+      const sheetLabel = totalImages > 1 ? ` (${totalImages}장 용지 합산)` : '';
       const newBatch: BatchRecord = {
         id: `batch-${Date.now()}`,
-        title: `${new Date().toLocaleDateString('ko-KR')} ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 접수 (${scannedResults.length}건)`,
+        title: `${new Date().toLocaleDateString('ko-KR')} ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 접수 (${allScannedResults.length}건${sheetLabel})`,
         createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        itemCount: scannedResults.length,
-        boxCount: scannedResults.reduce((acc, i) => acc + (i.quantity || 1), 0),
-        warningCount: scannedResults.filter((i) => i.status === 'NEEDS_REVIEW').length,
-        errorCount: scannedResults.filter((i) => i.status === 'ERROR').length,
+        itemCount: allScannedResults.length,
+        boxCount: allScannedResults.reduce((acc, i) => acc + (i.quantity || 1), 0),
+        warningCount: allScannedResults.filter((i) => i.status === 'NEEDS_REVIEW').length,
+        errorCount: allScannedResults.filter((i) => i.status === 'ERROR').length,
         status: 'completed',
         courier: sender.defaultCourier || 'cj',
-        items: scannedResults,
-        imageUrl: base64Data,
+        items: allScannedResults,
+        imageUrl: images[0].base64,
       };
 
       setActiveBatchId(newBatch.id);
@@ -298,12 +305,16 @@ export default function App() {
       const errMsg = err?.message || '인식 중 일시적 오류가 발생했습니다.';
       setScanError({
         message: errMsg,
-        lastImage: { base64: base64Data, mime: mimeType },
+        lastImage: images[0] ? { base64: images[0].base64, mime: images[0].mimeType } : undefined,
       });
     } finally {
       setIsScanning(false);
       setScanStepText('');
     }
+  };
+
+  const handleScanImage = async (base64Data: string, mimeType: string) => {
+    await handleScanImages([{ base64: base64Data, mimeType }]);
   };
 
   // Direct load sample data
@@ -502,6 +513,7 @@ export default function App() {
         {currentTab === 'scan' && (
           <ScanUploadView
             onScanImage={handleScanImage}
+            onScanImages={handleScanImages}
             onLoadSample={handleLoadSampleData}
             isScanning={isScanning}
             scanStepText={scanStepText}
