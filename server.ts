@@ -84,6 +84,80 @@ app.get("/ads.txt", (req, res) => {
   res.send(`google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
 });
 
+// Helper to resolve request base URL for sitemap and canonical links
+function getRequestBaseUrl(req: express.Request): string {
+  if (process.env.SITE_URL && process.env.SITE_URL.trim()) {
+    return process.env.SITE_URL.trim().replace(/\/$/, "");
+  }
+  if (process.env.APP_URL && process.env.APP_URL.trim()) {
+    return process.env.APP_URL.trim().replace(/\/$/, "");
+  }
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const proto = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol || "https";
+  const forwardedHost = req.headers["x-forwarded-host"];
+  const host = typeof forwardedHost === "string" ? forwardedHost.split(",")[0].trim() : req.headers.host || "localhost:3000";
+  return `${proto}://${host}`;
+}
+
+// robots.txt for Googlebot & Web Crawlers
+app.get("/robots.txt", (req, res) => {
+  const baseUrl = getRequestBaseUrl(req);
+  res.type("text/plain; charset=utf-8");
+  res.send(
+`User-agent: *
+Allow: /
+
+Sitemap: ${baseUrl}/sitemap.xml
+`
+  );
+});
+
+// sitemap.xml for Google Search Console & Naver Search Advisor
+app.get("/sitemap.xml", (req, res) => {
+  const baseUrl = getRequestBaseUrl(req);
+  const today = new Date().toISOString().slice(0, 10);
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?tab=scan</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?tab=result</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/?tab=history</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>`;
+
+  res.type("application/xml; charset=utf-8");
+  res.send(xml);
+});
+
+// Google Search Console HTML File Verification Handler (e.g. /google1234567890abcdef.html)
+app.get(/^\/google([a-zA-Z0-9_-]+)\.html$/, (req, res) => {
+  const filename = req.path.replace(/^\//, "");
+  res.type("text/html; charset=utf-8");
+  res.send(`google-site-verification: ${filename}`);
+});
+
 // --- Real-time Mobile Camera Sync Sessions ---
 interface MobileSyncImage {
   imageBase64: string;
