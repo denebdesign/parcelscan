@@ -158,6 +158,13 @@ app.get(/^\/google([a-zA-Z0-9_-]+)\.html$/, (req, res) => {
   res.send(`google-site-verification: ${filename}`);
 });
 
+// Naver Search Advisor HTML File Verification Handler (e.g. /naver[코드].html)
+app.get(/^\/naver([a-zA-Z0-9_-]+)\.html$/, (req, res) => {
+  const filename = req.path.replace(/^\//, "");
+  res.type("text/html; charset=utf-8");
+  res.send(`naver-site-verification: ${filename}`);
+});
+
 // --- Real-time Mobile Camera Sync Sessions ---
 interface MobileSyncImage {
   imageBase64: string;
