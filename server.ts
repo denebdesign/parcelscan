@@ -89,14 +89,15 @@ function getRequestBaseUrl(req: express.Request): string {
   if (process.env.SITE_URL && process.env.SITE_URL.trim()) {
     return process.env.SITE_URL.trim().replace(/\/$/, "");
   }
-  if (process.env.APP_URL && process.env.APP_URL.trim()) {
-    return process.env.APP_URL.trim().replace(/\/$/, "");
-  }
   const forwardedProto = req.headers["x-forwarded-proto"];
   const proto = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol || "https";
   const forwardedHost = req.headers["x-forwarded-host"];
-  const host = typeof forwardedHost === "string" ? forwardedHost.split(",")[0].trim() : req.headers.host || "localhost:3000";
-  return `${proto}://${host}`;
+  const host = typeof forwardedHost === "string" ? forwardedHost.split(",")[0].trim() : req.headers.host;
+  
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1") && !host.includes("run.app")) {
+    return `${proto}://${host}`;
+  }
+  return "https://parcelscan.iuser.kr";
 }
 
 // robots.txt for Googlebot & Web Crawlers
