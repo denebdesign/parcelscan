@@ -279,242 +279,176 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto py-2">
-      {/* 1. Navigation Breadcrumb & Batch Switcher Bar */}
-      <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Prominent Back to List & Breadcrumbs */}
-        <div className="flex items-center gap-2.5">
-          <button
-            id="btn-back-to-batch-list"
-            onClick={onBackToList}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-xs transition-all border border-slate-200/80 active:scale-95 shadow-2xs shrink-0 cursor-pointer"
-            title="접수 이력 보관함 목록으로 돌아갑니다"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">접수 목록으로 돌아가기</span>
-            <span className="sm:hidden">접수 목록</span>
-          </button>
-
-          <span className="text-slate-300 hidden sm:inline">|</span>
-
-          <nav className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <button 
-              onClick={() => onNavigateTab?.('dashboard')} 
-              className="hover:text-blue-600 transition-colors flex items-center gap-1"
+    <div className="space-y-3.5 max-w-7xl mx-auto py-1">
+      {/* 1. Header & Primary Action Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-3.5">
+        {/* Top Line: Back Button + Title + Actions */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+          <div className="flex items-center gap-3">
+            <button
+              id="btn-back-to-batch-list"
+              onClick={onBackToList}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all border border-slate-200 shrink-0 cursor-pointer"
+              title="접수 목록으로 돌아가기"
             >
-              <LayoutDashboard className="w-3 h-3 text-slate-400" />
-              <span>대시보드</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
+              <span>접수 목록</span>
             </button>
-            <span className="text-slate-300">›</span>
-            <button 
-              onClick={onBackToList} 
-              className="hover:text-blue-600 transition-colors flex items-center gap-1"
-            >
-              <History className="w-3 h-3 text-slate-400" />
-              <span>접수 이력 목록</span>
-            </button>
-            <span className="text-slate-300">›</span>
-            <span className="font-bold text-slate-900 truncate max-w-[220px]">
-              {activeBatchTitle || '현재 인식 결과'}
-            </span>
-          </nav>
-        </div>
 
-        {/* Right: Switch between different scanned batches */}
-        {batches.length > 1 && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 font-medium hidden md:inline">다른 접수 회차:</span>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                {activeBatchTitle || '접수 상세 내역'}
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                총 {items.length}건 ({totalBoxes}박스)
+              </span>
+            </div>
+          </div>
+
+          {/* Core Action Cluster: Courier Select + Preview + Excel Download */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end">
+            {/* Courier Selection */}
             <div className="relative">
               <select
-                id="select-active-batch"
-                value={activeBatchId || ''}
+                id="select-courier"
+                value={selectedCourier}
                 onChange={(e) => {
-                  const target = batches.find(b => b.id === e.target.value);
-                  if (target && onSelectBatch) {
-                    onSelectBatch(target);
+                  const newCourier = e.target.value as CourierType;
+                  setSelectedCourier(newCourier);
+                  if (activeBatchId && onUpdateBatchCourier) {
+                    onUpdateBatchCourier(activeBatchId, newCourier);
                   }
                 }}
-                className="appearance-none pl-2.5 pr-7 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs max-w-[150px] sm:max-w-none truncate"
+                className="appearance-none pl-3 pr-7 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
               >
-                {batches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.title} ({b.itemCount}건)
+                {Object.values(COURIER_CONFIGS).map((cfg) => (
+                  <option key={cfg.id} value={cfg.id}>
+                    {cfg.name} 양식
                   </option>
                 ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* Top Header & Overview bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
-                <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight break-keep">
-                {activeBatchTitle ? `${activeBatchTitle} - 상세 확인` : '인식 결과 확인 및 수정'}
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
-                총 {items.length}건 ({totalBoxes}박스)
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1.5 break-keep">
-              AI가 추출한 데이터를 확인하고, 필요한 경우 주소 검색이나 대량 일괄 적용을 진행하세요.
-            </p>
-          </div>
+            {/* Postal Code Auto-Refine */}
+            <button
+              id="btn-batch-resolve-postcodes"
+              onClick={handleBatchResolvePostcodes}
+              disabled={isResolvingPostcodes}
+              className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-slate-700 hover:text-blue-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              title="우편번호 자동 정제"
+            >
+              <Sparkles className={`w-3.5 h-3.5 text-blue-600 ${isResolvingPostcodes ? 'animate-spin' : ''}`} />
+              <span>{isResolvingPostcodes ? '정제 중...' : '우편번호 정제'}</span>
+            </button>
 
-          {/* Quick Actions & Excel Download */}
-          <div className="flex flex-col sm:flex-row flex-wrap sm:items-center gap-2 sm:gap-2.5">
-            {/* Row 1 on mobile: Courier Select + Auto Postcode */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {/* Courier Selector */}
-              <div className="relative flex-1 sm:flex-none">
-                <select
-                  id="select-courier"
-                  value={selectedCourier}
-                  onChange={(e) => {
-                    const newCourier = e.target.value as CourierType;
-                    setSelectedCourier(newCourier);
-                    if (activeBatchId && onUpdateBatchCourier) {
-                      onUpdateBatchCourier(activeBatchId, newCourier);
-                    }
-                  }}
-                  className="w-full sm:w-auto appearance-none pl-3 pr-8 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                >
-                  {Object.values(COURIER_CONFIGS).map((cfg) => (
-                    <option key={cfg.id} value={cfg.id}>
-                      {cfg.name} 양식
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+            {/* Excel Preview */}
+            <button
+              id="btn-open-excel-preview"
+              onClick={() => onOpenExcelPreview(selectedCourier)}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              title="양식 미리보기"
+            >
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <span>미리보기</span>
+            </button>
 
-              {/* Postal Code Auto-Refine Button */}
-              <button
-                id="btn-batch-resolve-postcodes"
-                onClick={handleBatchResolvePostcodes}
-                disabled={isResolvingPostcodes}
-                className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
-                title="도로명주소 공식 DB와 연동하여 모든 행의 5자리 우편번호를 정확히 검증/정제합니다"
-              >
-                <Sparkles className={`w-3.5 h-3.5 text-blue-600 ${isResolvingPostcodes ? 'animate-spin' : ''}`} />
-                <span>{isResolvingPostcodes ? '정제 중...' : '우편번호 자동정제'}</span>
-              </button>
-            </div>
+            {/* Primary Download Excel */}
+            <button
+              id="btn-quick-download-excel"
+              onClick={handleQuickDownload}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all active:scale-98 cursor-pointer whitespace-nowrap"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>엑셀 다운로드</span>
+            </button>
 
-            {/* Row 2 on mobile: Preview + Download Excel + ReScan */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {/* Excel Preview Button */}
-              <button
-                id="btn-open-excel-preview"
-                onClick={() => onOpenExcelPreview(selectedCourier)}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold shadow-2xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
-              >
-                <Eye className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>미리보기</span>
-              </button>
-
-              {/* Excel Direct Download Button */}
-              <button
-                id="btn-quick-download-excel"
-                onClick={handleQuickDownload}
-                className="flex-2 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-              >
-                <Download className="w-4 h-4 shrink-0" />
-                <span>엑셀 다운로드 (.xlsx)</span>
-              </button>
-
-              {/* Re-Scan Button */}
-              <button
-                onClick={onReScan}
-                className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shrink-0 cursor-pointer"
-                title="다른 사진 다시 인식"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            </div>
+            {/* Re-Scan Icon Button */}
+            <button
+              onClick={onReScan}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-colors shrink-0 cursor-pointer"
+              title="새 사진 재촬영/인식"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Filter and Status Counter row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
-          {/* Status Badges Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+        {/* Bottom Toolbar: Filter Pills (Left) + Search & Add Row (Right) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-100 text-xs">
+          {/* Status Filters */}
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer text-xs ${
                 statusFilter === 'ALL'
-                  ? 'bg-slate-900 text-white shadow-2xs'
+                  ? 'bg-slate-800 text-white shadow-2xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              전체 {items.length}건
+              전체 {items.length}
             </button>
 
             <button
               onClick={() => setStatusFilter('VALID')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer text-xs ${
                 statusFilter === 'VALID'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                  ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
               }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>정상 {validCount}건</span>
+              <CheckCircle2 className="w-3 h-3" />
+              <span>정상 {validCount}</span>
             </button>
 
-            <button
-              onClick={() => setStatusFilter('NEEDS_REVIEW')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
-                statusFilter === 'NEEDS_REVIEW'
-                  ? 'bg-amber-500 text-white shadow-2xs'
-                  : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>수정필요 {reviewCount}건</span>
-            </button>
+            {reviewCount > 0 && (
+              <button
+                onClick={() => setStatusFilter('NEEDS_REVIEW')}
+                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer text-xs ${
+                  statusFilter === 'NEEDS_REVIEW'
+                    ? 'bg-amber-500 text-white shadow-2xs font-bold'
+                    : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                <AlertCircle className="w-3 h-3" />
+                <span>수정필요 {reviewCount}</span>
+              </button>
+            )}
 
             {errorCount > 0 && (
               <button
                 onClick={() => setStatusFilter('ERROR')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer text-xs ${
                   statusFilter === 'ERROR'
-                    ? 'bg-red-600 text-white shadow-2xs'
-                    : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                    ? 'bg-red-600 text-white shadow-2xs font-bold'
+                    : 'bg-red-50 text-red-700 hover:bg-red-100'
                 }`}
               >
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>오류 {errorCount}건</span>
+                <AlertCircle className="w-3 h-3" />
+                <span>오류 {errorCount}</span>
               </button>
             )}
           </div>
 
-          {/* Search and Secondary Actions */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-56">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Search Bar + Add Row Button */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-52">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="이름, 연락처, 주소 검색"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 transition-colors"
               />
             </div>
 
-            {/* Add New Row */}
             <button
               id="btn-add-row"
               onClick={onAddNewRow}
-              className="px-3.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-colors shrink-0 border border-blue-200 cursor-pointer whitespace-nowrap"
+              className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-colors shrink-0 border border-blue-100 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>행 추가</span>
@@ -541,39 +475,33 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                 <span>전체 선택 ({selectedItems.length}/{items.length})</span>
               </button>
 
-              {/* View Mode Switcher (Table vs Card): PC/태블릿 표 뷰 우선, 모바일 카드 뷰 우선 */}
-              <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg">
+              {/* View Mode Switcher (Table vs Card) */}
+              <div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg">
                 <button
                   type="button"
                   onClick={() => handleToggleViewMode('table')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                     mobileViewMode === 'table'
-                      ? 'bg-white text-blue-700 shadow-2xs'
+                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="표 테이블 전체 보기 (PC 및 태블릿 권장)"
+                  title="표 보기"
                 >
                   <Table className="w-3.5 h-3.5" />
-                  <span>표 뷰</span>
-                  <span className="hidden sm:inline-block text-[9px] px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold">
-                    PC·태블릿
-                  </span>
+                  <span>표</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleToggleViewMode('card')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                     mobileViewMode === 'card'
-                      ? 'bg-white text-blue-700 shadow-2xs'
+                      ? 'bg-white text-blue-700 shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="카드형 목록 보기 (스마트폰 모바일 권장)"
+                  title="카드 목록 보기"
                 >
                   <LayoutList className="w-3.5 h-3.5" />
-                  <span>카드 뷰</span>
-                  <span className="inline-block sm:hidden text-[9px] px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200/60 font-semibold">
-                    모바일
-                  </span>
+                  <span>카드</span>
                 </button>
               </div>
             </div>
@@ -863,9 +791,9 @@ export const ScanResultView: React.FC<ScanResultViewProps> = ({
                               <div className="font-extrabold text-slate-900 text-xs whitespace-nowrap">
                                 {item.recipientName || '(이름 없음)'}
                               </div>
-                              {item.senderName && item.senderName !== sender.name && (
-                                <div className="text-[10px] text-blue-600 font-medium whitespace-nowrap mt-0.5">
-                                  발송: {item.senderName}{item.senderPhone && item.senderPhone !== sender.phone ? ` (${item.senderPhone})` : ''}
+                              {item.senderName && item.senderName.trim() !== '' && item.senderName.trim() !== (sender.name || '').trim() && (
+                                <div className="text-[10px] text-slate-400 font-normal whitespace-nowrap mt-0.5">
+                                  발송: {item.senderName}
                                 </div>
                               )}
                             </td>

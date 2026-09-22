@@ -47,6 +47,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   todayStats,
 }) => {
   const currentDisplayName = sender?.name || userProfile?.businessName || userProfile?.name || '내 취급점';
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto py-4">
       {/* Hero Process Banner matching Blueprint (1. 시스템 전체 흐름) */}
@@ -117,24 +118,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 max-w-xl">
+          <div className="mt-6 max-w-sm">
             <button
               id="dash-cta-scan"
               onClick={onStartNewScan}
-              className="w-full h-12 inline-flex items-center justify-center gap-2 px-5 rounded-xl bg-white text-blue-700 font-bold text-sm hover:bg-blue-50 transition-all shadow-md active:scale-98 cursor-pointer"
+              className="w-full h-12 inline-flex items-center justify-center gap-2 px-6 rounded-xl bg-white text-blue-700 font-bold text-sm hover:bg-blue-50 transition-all shadow-md active:scale-98 cursor-pointer"
             >
               <Camera className="w-4 h-4 text-blue-600 shrink-0" />
               <span className="whitespace-nowrap">사진 촬영 및 새 접수 시작</span>
               <ArrowRight className="w-4 h-4 ml-0.5 shrink-0" />
-            </button>
-
-            <button
-              id="dash-cta-sample"
-              onClick={onOpenSampleScan}
-              className="w-full h-12 inline-flex items-center justify-center gap-2 px-5 rounded-xl bg-blue-800/80 hover:bg-blue-800 text-white font-bold text-sm transition-all border border-blue-300/40 shadow-xs active:scale-98 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-yellow-300 shrink-0" />
-              <span className="whitespace-nowrap">주소 용지 샘플 체험하기</span>
             </button>
           </div>
         </div>
@@ -142,14 +134,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 2. 오늘 접수 현황 Cards (Matching Blueprint 5-2 대시보드) */}
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-bold text-slate-900">오늘 접수 현황</h2>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              {currentDisplayName}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-bold text-slate-900">오늘 접수 현황</h2>
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+            {currentDisplayName}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">

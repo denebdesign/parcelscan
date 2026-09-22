@@ -560,7 +560,7 @@ export default function App() {
 
         {/* Naver Shopping Connect Supplies Banner */}
         <div className="max-w-5xl mx-auto px-4 mt-8">
-          <NaverShoppingBanner />
+          <NaverShoppingBanner triggerEventKey={`${currentTab}_${activeBatchId || ''}_${batches.length}`} />
         </div>
 
         {/* Google AdSense Banner Area */}

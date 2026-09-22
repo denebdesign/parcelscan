@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -75,6 +76,32 @@ app.get("/api/check-ai-status", (req, res) => {
     keyCount: keys.length,
     status: keys.length > 0 ? "ready" : "waiting_key",
   });
+});
+
+// Direct product image upload & storage endpoint
+app.post("/api/save-product-image", (req, res) => {
+  try {
+    const { productId, base64Data } = req.body;
+    if (!productId || !base64Data) {
+      return res.status(400).json({ error: "productId and base64Data are required" });
+    }
+    const base64Str = base64Data.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Str, "base64");
+    const filename = `product_${productId}.jpg`;
+    
+    const publicDir = path.join(process.cwd(), "public/images/products");
+    const assetsDir = path.join(process.cwd(), "src/assets/products");
+    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
+    
+    fs.writeFileSync(path.join(publicDir, filename), buffer);
+    fs.writeFileSync(path.join(assetsDir, filename), buffer);
+    
+    return res.json({ success: true, filename, url: `/images/products/${filename}?t=${Date.now()}` });
+  } catch (err: any) {
+    console.error("Failed to save product image:", err);
+    return res.status(500).json({ error: err.message || "Failed to save image" });
+  }
 });
 
 // ads.txt for Google AdSense Crawler
@@ -756,6 +783,9 @@ app.post("/api/scan-address", async (req, res) => {
     });
   }
 });
+
+// Serve static assets from public folder explicitly
+app.use(express.static(path.join(process.cwd(), "public")));
 
 // Start Server with Vite Middleware
 async function startServer() {
